@@ -136,6 +136,97 @@ router.get('/viewport', (req, res, next) => {
   }
 });
 
+// Batch chunk fetch.
+// Body: { layers?: string[], chunks: [{cx, cy}, ...] }
+// All chunks are emitted at full resolution (stride=1, one cell per output).
+// Coords are wrapped; cx/cy represent chunk indices in [0, chunksW/H).
+const MAX_CHUNKS_PER_BATCH = 64;
+
+router.post('/chunks', (req, res, next) => {
+  try {
+    const { config, terrain } = getWorld();
+    const body = req.body || {};
+    const requested = Array.isArray(body.layers) && body.layers.length > 0
+      ? body.layers
+      : ['height', 'groundType', 'waterDepth', 'moveCost'];
+    for (const l of requested) {
+      if (!ALLOWED_LAYERS.has(l)) {
+        return res.status(400).json({ error: `unknown layer: ${l}` });
+      }
+    }
+    const items = body.chunks;
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'chunks must be a non-empty array' });
+    }
+    if (items.length > MAX_CHUNKS_PER_BATCH) {
+      return res.status(400).json({
+        error: `batch too large: ${items.length} > ${MAX_CHUNKS_PER_BATCH}`,
+      });
+    }
+
+    const cs = config.chunkSize;
+    const W = config.width;
+    const H = config.height;
+    const chunksW = Math.floor(W / cs);
+    const chunksH = Math.floor(H / cs);
+
+    const wantHeight = requested.includes('height');
+    const wantGround = requested.includes('groundType');
+    const wantWater = requested.includes('waterDepth');
+    const wantCost = requested.includes('moveCost');
+    const wantBlocks = requested.includes('blocksVision');
+
+    const out = new Array(items.length);
+
+    for (let n = 0; n < items.length; n++) {
+      const it = items[n];
+      const cx = ((parseInt(it.cx, 10) % chunksW) + chunksW) % chunksW;
+      const cy = ((parseInt(it.cy, 10) % chunksH) + chunksH) % chunksH;
+
+      const baseX = cx * cs;
+      const baseY = cy * cs;
+      const N = cs * cs;
+
+      const heightArr = wantHeight ? new Float32Array(N) : null;
+      const groundArr = wantGround ? new Array(N) : null;
+      const waterArr = wantWater ? new Float32Array(N) : null;
+      const costArr = wantCost ? new Float32Array(N) : null;
+      const blocksArr = wantBlocks ? new Uint8Array(N) : null;
+
+      for (let j = 0; j < cs; j++) {
+        const wy = baseY + j;
+        for (let i = 0; i < cs; i++) {
+          const wx = baseX + i;
+          const idx = j * cs + i;
+          if (wantGround || wantWater || wantCost || wantBlocks) {
+            const cell = terrain.cellAt(wx, wy);
+            if (heightArr) heightArr[idx] = cell.height;
+            if (groundArr) groundArr[idx] = cell.groundType;
+            if (waterArr) waterArr[idx] = cell.waterDepth;
+            if (costArr) costArr[idx] = cell.baseMoveCost === Infinity ? -1 : cell.baseMoveCost;
+            if (blocksArr) blocksArr[idx] = cell.blocksVision ? 1 : 0;
+          } else if (heightArr) {
+            heightArr[idx] = terrain.heightAt(wx, wy);
+          }
+        }
+      }
+
+      const layers = {};
+      if (heightArr) layers.height = Array.from(heightArr);
+      if (groundArr) layers.groundType = groundArr;
+      if (waterArr) layers.waterDepth = Array.from(waterArr);
+      if (costArr) layers.moveCost = Array.from(costArr);
+      if (blocksArr) layers.blocksVision = Array.from(blocksArr);
+
+      out[n] = { cx, cy, size: cs, layers };
+    }
+
+    res.json({ wrap: config.wrapMode, worldWidth: W, worldHeight: H, chunks: out });
+  } catch (e) {
+    next(e);
+  }
+});
+
 router.get('/cell', (req, res, next) => {
   try {
     const { config, terrain } = getWorld();

@@ -10,7 +10,7 @@ function createApp() {
 
   const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000';
   app.use(cors({ origin: corsOrigin === '*' ? true : corsOrigin.split(',') }));
-  app.use(express.json());
+  app.use(express.json({ limit: '1mb' }));
 
   // Simple request logger for development.
   app.use((req, _res, next) => {

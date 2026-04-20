@@ -22,18 +22,20 @@ function createTerrain(config) {
   const detail = createPerlin4D(seed ^ 0x85ebca77);
   const ridge = createPerlin4D(seed ^ 0xc2b2ae35);
 
-  // Feature scales expressed in cells (1 cell = 1 m).
-  // World is 5120 m so we want features around hundreds of meters.
-  const LARGE_FEATURE_CELLS = 1400; // ~1.4 km -> broad hills/basins
-  const MID_FEATURE_CELLS = 520;    // ~0.5 km -> local ridges
-  const FINE_FEATURE_CELLS = 180;   // ~0.2 km -> surface roughness
-
-  // Frequency per axis = period / feature_scale.
-  // In the 4D-circle mapping, increasing "frequency" = scaling the radius
-  // in (cos, sin) space. We express frequency in cycles per world.
-  const fLarge = width / LARGE_FEATURE_CELLS;
-  const fMid = width / MID_FEATURE_CELLS;
-  const fFine = width / FINE_FEATURE_CELLS;
+  // Frequencies expressed as INTEGER cycles per world. This is critical for
+  // a seamless wrap: the 4D-torus mapping is only truly periodic when each
+  // octave completes a whole number of cycles across the world size.
+  // (Non-integer cycle counts cause a visible seam at x=0 and y=0.)
+  //
+  // With width=5120 the feature sizes are approximately:
+  //   4  cycles -> 1280 m features (broad hills/basins)
+  //   10 cycles ->  512 m features (local ridges)
+  //   32 cycles ->  160 m features (surface roughness)
+  //   6  cycles (ridge) -> ~853 m features
+  const fLarge = 4;
+  const fMid = 10;
+  const fFine = 32;
+  const fRidge = 6;
 
   // Precomputed 2pi/size
   const kx = TWO_PI / width;
@@ -59,7 +61,7 @@ function createTerrain(config) {
     const n1 = seamless(base.noise, x, y, fLarge, fLarge);          // ~ [-0.7,0.7]
     const n2 = seamless(detail.noise, x, y, fMid, fMid);
     const n3 = seamless(detail.noise, x, y, fFine, fFine);
-    const nr = seamless(ridge.noise, x, y, fMid * 0.6, fMid * 0.6);
+    const nr = seamless(ridge.noise, x, y, fRidge, fRidge);
 
     // Octaves weighted so large shapes dominate. Keep total amplitude modest so
     // per-cell slopes stay gentle on a 1m-cell world. Perlin4D peaks near ±0.7.
