@@ -109,6 +109,11 @@ function createAgentStore(config, terrain, chunkIndex) {
         thirst: 0,
         tiredness: 0,
         traits: { ...DEFAULT_TRAITS },
+        // Movement tracking for interpolation
+        movementStartPos: null,
+        movementStartTick: null,
+        targetPos: null,
+        currentMovementStep: 0,
         _cx: cx,
         _cy: cy,
       };
@@ -119,7 +124,7 @@ function createAgentStore(config, terrain, chunkIndex) {
     }
   }
 
-  function publicView(a) {
+  function publicView(a, currentTick) {
     return {
       id: a.id,
       x: a.x,
@@ -138,12 +143,19 @@ function createAgentStore(config, terrain, chunkIndex) {
       pathLength: a.path.length,
       pathIndex: a.pathIndex,
       pathRemaining: Math.max(0, a.path.length - a.pathIndex),
+      // Movement data for interpolation
+      movementStartPos: a.movementStartPos,
+      targetPos: a.targetPos,
+      movementStartTick: a.movementStartTick,
+      currentTick: currentTick,
+      moveSpeed: a.traits.moveSpeed,
+      isMoving: a.state === 'moving' && a.movementStartPos !== null,
     };
   }
 
-  function detailView(a) {
+  function detailView(a, currentTick) {
     return {
-      ...publicView(a),
+      ...publicView(a, currentTick),
       inventory: a.inventory.slice(),
       memory: a.memory.slice(),
       path: a.path.slice(a.pathIndex),
@@ -166,30 +178,49 @@ function createAgentStore(config, terrain, chunkIndex) {
   }
 
   // Advance agent one cell along its stored path. Returns true if the agent moved.
-  function stepAgent(agent) {
+  function stepAgent(agent, currentTick) {
     if (agent.pathIndex >= agent.path.length) {
       if (agent.state === 'moving') {
         agent.state = 'idle';
         agent.currentAction = null;
       }
+      // Clear movement tracking when path complete
+      agent.movementStartPos = null;
+      agent.targetPos = null;
+      agent.currentMovementStep = 0;
       return false;
     }
+
     const next = agent.path[agent.pathIndex];
     const nx = wrap(next.x, width);
     const ny = wrap(next.y, height);
 
-    // Compute wrapped delta for facing (shortest direction on torus).
-    let dx = nx - agent.x;
-    let dy = ny - agent.y;
-    if (dx > width / 2) dx -= width;
-    else if (dx < -width / 2) dx += width;
-    if (dy > height / 2) dy -= height;
-    else if (dy < -height / 2) dy += height;
+    // Record movement start for new step
+    if (!agent.movementStartPos) {
+      agent.movementStartPos = { x: agent.x, y: agent.y };
+      agent.movementStartTick = currentTick;
+      agent.targetPos = { x: nx, y: ny };
+      agent.currentMovementStep = 0;
+      agent.state = 'moving'; // Set state to moving
 
+      // Don't immediately update position - let frontend handle interpolation
+      // Only update facing direction
+      let dx = nx - agent.x;
+      let dy = ny - agent.y;
+      if (dx > width / 2) dx -= width;
+      else if (dx < -width / 2) dx += width;
+      if (dy > height / 2) dy -= height;
+      else if (dy < -height / 2) dy += height;
+
+      agent.facing = dirFromDelta(dx, dy);
+      return true; // Movement started but not completed
+    }
+
+    // Movement already in progress - complete it now
     agent.x = nx;
     agent.y = ny;
-    agent.facing = dirFromDelta(dx, dy);
     agent.pathIndex++;
+    agent.currentMovementStep = 1; // Movement completed for this step
 
     const ncx = Math.floor(nx / chunkSize);
     const ncy = Math.floor(ny / chunkSize);
@@ -202,15 +233,31 @@ function createAgentStore(config, terrain, chunkIndex) {
     if (agent.pathIndex >= agent.path.length) {
       agent.state = 'idle';
       agent.currentAction = null;
+      agent.currentGoal = null; // Clear goal so agent can get a new one
+      // Clear movement data when path completes
+      agent.movementStartPos = null;
+      agent.targetPos = null;
+      agent.movementStartTick = null;
+      agent.currentMovementStep = 0;
+    } else {
+      // Clear movement data for this step but prepare for next step
+      agent.movementStartPos = null;
+      agent.targetPos = null;
+      agent.movementStartTick = null;
+      agent.currentMovementStep = 0;
     }
+
+    // Keep movement tracking data for interpolation - will be updated on next step
+    // Don't clear here - let it persist until the next movement step begins
+
     return true;
   }
 
-  function stepAll(steps = 1) {
+  function stepAll(steps = 1, currentTick) {
     const changed = new Set();
     for (let s = 0; s < steps; s++) {
       for (const agent of all) {
-        if (stepAgent(agent)) changed.add(agent);
+        if (stepAgent(agent, currentTick)) changed.add(agent);
       }
     }
     return Array.from(changed);

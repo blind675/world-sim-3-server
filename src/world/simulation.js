@@ -1,6 +1,7 @@
 'use strict';
 
 const { isCellPathable } = require('./agents');
+const { findPath } = require('./pathfinding');
 
 let singleton = null;
 
@@ -13,7 +14,6 @@ function createSimulation(world) {
 
   let tickCount = 0;
   let intervalId = null;
-  let isRunning = false;
 
   function tick() {
     tickCount++;
@@ -37,7 +37,8 @@ function createSimulation(world) {
     // Will be expanded with needs-driven decisions in Milestone 5
 
     // If agent has no current goal, set a simple wander goal
-    if (!agent.currentGoal && Math.random() < 0.02) { // 2% chance per tick to set a new goal
+    // Higher chance (30%) for idle agents to get new goals more frequently
+    if (!agent.currentGoal && Math.random() < 0.3) { // 30% chance per tick to set a new goal
       const rng = Math.random();
       const wanderDistance = 20 + Math.floor(rng * 30); // 20-50 cells
 
@@ -56,101 +57,31 @@ function createSimulation(world) {
         targetY: wrappedY
       };
 
-      agent.currentAction = 'moving';
-    }
-
-    // Execute movement if agent has a goal and is moving
-    if (agent.currentGoal && agent.currentAction === 'moving') {
-      // Simple movement: move 1 cell toward goal per tick
-      const dx = agent.currentGoal.targetX - agent.x;
-      const dy = agent.currentGoal.targetY - agent.y;
-
-      // Handle wrap-around for shortest path
-      const worldWidth = world.config.width;
-      const worldHeight = world.config.height;
-
-      // Adjust for wrap-around to find shortest path
-      let adjDx = dx;
-      let adjDy = dy;
-
-      if (Math.abs(dx) > worldWidth / 2) {
-        adjDx = dx > 0 ? dx - worldWidth : dx + worldWidth;
-      }
-      if (Math.abs(dy) > worldHeight / 2) {
-        adjDy = dy > 0 ? dy - worldHeight : dy + worldHeight;
-      }
-
-      // Check if reached goal
-      if (adjDx === 0 && adjDy === 0) {
-        agent.currentGoal = null;
-        agent.currentAction = 'idle';
-        return;
-      }
-
-      // Move one step toward goal
-      let newX = agent.x;
-      let newY = agent.y;
-
-      if (adjDx !== 0) {
-        newX = (agent.x + Math.sign(adjDx) + worldWidth) % worldWidth;
-      }
-      if (adjDy !== 0) {
-        newY = (agent.y + Math.sign(adjDy) + worldHeight) % worldHeight;
-      }
-
-      // Check if new position is walkable
-      const cell = world.terrain.cellAt(newX, newY);
-      const isPathable = isCellPathable(cell, config.agents.deepWaterThreshold);
-
-      if (isPathable) {
-        // Update position
-        agent.x = newX;
-        agent.y = newY;
-
-        // Update chunk index
-        const oldCx = Math.floor((agent.x - Math.sign(adjDx)) / world.config.chunkSize);
-        const oldCy = Math.floor((agent.y - Math.sign(adjDy)) / world.config.chunkSize);
-        const newCx = Math.floor(agent.x / world.config.chunkSize);
-        const newCy = Math.floor(agent.y / world.config.chunkSize);
-
-        if (oldCx !== newCx || oldCy !== newCy) {
-          world.chunkIndex.moveAgent(agent.id, oldCx, oldCy, newCx, newCy);
-        }
-
-        // Update facing direction
-        if (adjDx !== 0 || adjDy !== 0) {
-          agent.facing = Math.atan2(adjDy, adjDx);
-        }
+      // Compute path to the goal
+      const path = findPath(world, { x: agent.x, y: agent.y }, { x: wrappedX, y: wrappedY });
+      if (path) {
+        agents.setPath(agent, path);
       } else {
-        // Blocked - clear goal and try again later
+        // No path found, clear the goal
         agent.currentGoal = null;
-        agent.currentAction = 'idle';
+        agent.currentAction = null;
       }
     }
-  }
 
-  function start() {
-    if (isRunning) return;
-
-    isRunning = true;
-    intervalId = setInterval(tick, tickMs);
-    console.log(`[simulation] started - tick interval ${tickMs}ms`);
-  }
-
-  function stop() {
-    if (!isRunning) return;
-
-    isRunning = false;
-    if (intervalId) {
-      clearInterval(intervalId);
-      intervalId = null;
+    // Execute movement if agent has a path
+    if (agent.path && agent.path.length > 0 && agent.pathIndex < agent.path.length) {
+      // Use the agent store's stepAgent function for movement tracking
+      agents.stepAgent(agent, currentTick);
     }
-    console.log('[simulation] stopped');
   }
+
+
+  // Auto-start the simulation
+  intervalId = setInterval(tick, tickMs);
+  console.log(`[simulation] auto-started - tick interval ${tickMs}ms`);
 
   function getStatus() {
     return {
-      isRunning,
       tickCount,
       tickMs,
       agentCount: agents.listAll().length
@@ -158,10 +89,7 @@ function createSimulation(world) {
   }
 
   singleton = {
-    start,
-    stop,
-    getStatus,
-    tick
+    getStatus
   };
 
   return singleton;

@@ -11,8 +11,6 @@ const port = parseInt(process.env.PORT, 10) || 4000;
 // Warm up world (builds perlin permutations) so first request is quick.
 const { config, simulation } = getWorld();
 
-// Start the simulation automatically
-simulation.start();
 
 app.listen(port, () => {
   // eslint-disable-next-line no-console

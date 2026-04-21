@@ -16,8 +16,10 @@ function parseIntParam(v, fallback) {
 // GET /api/agents — list summaries for all agents.
 router.get('/agents', (req, res, next) => {
   try {
-    const { agents } = getWorld();
-    const list = agents.listAll().map(agents.publicView);
+    const { agents, simulation } = getWorld();
+    const status = simulation.getStatus();
+    const currentTick = status.tickCount;
+    const list = agents.listAll().map(agent => agents.publicView(agent, currentTick));
     res.json({ count: list.length, agents: list });
   } catch (e) { next(e); }
 });
@@ -25,10 +27,12 @@ router.get('/agents', (req, res, next) => {
 // GET /api/agents/:id — full detail view.
 router.get('/agents/:id', (req, res, next) => {
   try {
-    const { agents } = getWorld();
+    const { agents, simulation } = getWorld();
     const a = agents.getById(req.params.id);
     if (!a) return res.status(404).json({ error: 'not_found' });
-    res.json(agents.detailView(a));
+    const status = simulation.getStatus();
+    const currentTick = status.tickCount;
+    res.json(agents.detailView(a, currentTick));
   } catch (e) { next(e); }
 });
 
@@ -72,13 +76,15 @@ router.post('/agents/:id/path', (req, res, next) => {
 const MAX_STEPS_PER_CALL = 64;
 router.post('/sim/step', (req, res, next) => {
   try {
-    const { agents } = getWorld();
+    const { agents, simulation } = getWorld();
     const body = req.body || {};
     let steps = parseIntParam(body.steps, 1);
     if (!Number.isFinite(steps) || steps < 1) steps = 1;
     if (steps > MAX_STEPS_PER_CALL) steps = MAX_STEPS_PER_CALL;
-    agents.stepAll(steps);
-    const list = agents.listAll().map(agents.publicView);
+    const status = simulation.getStatus();
+    const currentTick = status.tickCount;
+    agents.stepAll(steps, currentTick);
+    const list = agents.listAll().map(agent => agents.publicView(agent, currentTick));
     res.json({ steps, agents: list });
   } catch (e) { next(e); }
 });
