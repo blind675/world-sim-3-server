@@ -5,6 +5,8 @@ const cors = require('cors');
 
 const worldRoutes = require('./routes/world');
 const entitiesRoutes = require('./routes/entities');
+const agentsRoutes = require('./routes/agents');
+const { createSimulationRoutes } = require('./routes/simulation');
 
 function createApp() {
   const app = express();
@@ -28,6 +30,8 @@ function createApp() {
 
   app.use('/api/world', worldRoutes);
   app.use('/api/entities', entitiesRoutes);
+  app.use('/api', agentsRoutes);
+  app.use('/api/simulation', createSimulationRoutes());
 
   app.use((req, res) => {
     res.status(404).json({ error: 'not_found', path: req.originalUrl });

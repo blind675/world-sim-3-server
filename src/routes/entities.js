@@ -5,7 +5,7 @@ const { getWorld } = require('../world/world');
 
 const router = express.Router();
 
-const ALL_TYPES = new Set(['tree', 'rock', 'food', 'water_source', 'rest_spot']);
+const ALL_TYPES = new Set(['tree', 'rock', 'food', 'water_source', 'rest_spot', 'agent']);
 
 // Protective cap on viewport size. At zoom where ~10 chunks are visible,
 // the client's viewport is at most 10*128 = 1280 cells per axis, so 2048 is
@@ -53,10 +53,55 @@ router.get('/in-view', (req, res, next) => {
       typesSet = new Set(requested);
     }
 
-    const found = objects.queryRect(x, y, w, h, typesSet);
-    // Return a compact shape; no need to ship chunkKey to the client.
-    const out = found.map((o) => ({ id: o.id, type: o.type, x: o.x, y: o.y }));
-    res.json({ x, y, w, h, objectCount: out.length, objects: out });
+    // Objects (non-agent) come from the object store.
+    const includeObjects = !typesSet
+      || typesSet.has('tree') || typesSet.has('rock')
+      || typesSet.has('food') || typesSet.has('water_source') || typesSet.has('rest_spot');
+    const objectTypes = typesSet
+      ? new Set([...typesSet].filter((t) => t !== 'agent'))
+      : null;
+
+    const out = [];
+    if (includeObjects) {
+      const found = objects.queryRect(x, y, w, h, objectTypes);
+      for (const o of found) out.push({ id: o.id, type: o.type, x: o.x, y: o.y });
+    }
+
+    // Agents (filtered via chunk index + wrapped rect containment).
+    let agentOut = [];
+    if (!typesSet || typesSet.has('agent')) {
+      const { agents, chunkIndex, config } = getWorld();
+      const chunks = chunkIndex.chunksInRect(x, y, w, h);
+      const W = config.width;
+      const H = config.height;
+      const seen = new Set();
+      for (const { cx, cy } of chunks) {
+        const chunk = chunkIndex.getChunk(cx, cy);
+        for (const id of chunk.agentIds) {
+          if (seen.has(id)) continue;
+          const a = agents.getById(id);
+          if (!a) continue;
+          let dx = a.x - x; dx = ((dx % W) + W) % W;
+          let dy = a.y - y; dy = ((dy % H) + H) % H;
+          if (dx < w && dy < h) {
+            seen.add(id);
+            agentOut.push({
+              id: a.id, type: 'agent',
+              x: a.x, y: a.y,
+              facing: a.facing, state: a.state,
+            });
+          }
+        }
+      }
+      for (const a of agentOut) out.push(a);
+    }
+
+    res.json({
+      x, y, w, h,
+      objectCount: out.length - agentOut.length,
+      agentCount: agentOut.length,
+      objects: out,
+    });
   } catch (e) {
     next(e);
   }

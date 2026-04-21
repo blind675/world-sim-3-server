@@ -30,13 +30,20 @@ function buildConfig() {
       seaLevel: num('TERRAIN_SEA_LEVEL', 0),
     },
     simulation: {
-      tickMs: int('SIM_TICK_MS', 200),
+      tickMs: int('SIM_TICK_MS', 10000),
+    },
+    agents: {
+      count: int('AGENT_COUNT', 50),
+      // Water shallower than this is still walkable (shallow_water/mud);
+      // anything deeper (or the deep_water ground type) is impassable.
+      deepWaterThreshold: num('DEEP_WATER_THRESHOLD', 1.2),
     },
   };
   return Object.freeze({
     ...cfg,
     terrain: Object.freeze(cfg.terrain),
     simulation: Object.freeze(cfg.simulation),
+    agents: Object.freeze(cfg.agents),
   });
 }
 

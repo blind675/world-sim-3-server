@@ -9,7 +9,10 @@ const app = createApp();
 const port = parseInt(process.env.PORT, 10) || 4000;
 
 // Warm up world (builds perlin permutations) so first request is quick.
-const { config } = getWorld();
+const { config, simulation } = getWorld();
+
+// Start the simulation automatically
+simulation.start();
 
 app.listen(port, () => {
   // eslint-disable-next-line no-console
@@ -17,4 +20,5 @@ app.listen(port, () => {
     `[life-sim-v3] backend listening on http://localhost:${port}  ` +
     `world=${config.width}x${config.height} seed=${config.seed} chunk=${config.chunkSize}`
   );
+  console.log(`[life-sim-v3] simulation started automatically`);
 });
