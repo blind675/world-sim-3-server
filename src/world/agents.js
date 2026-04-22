@@ -157,9 +157,18 @@ function createAgentStore(config, terrain, chunkIndex) {
     return {
       ...publicView(a, currentTick),
       inventory: a.inventory.slice(),
-      memory: a.memory.slice(),
+      memory: a.memory.map(serializeMemoryEntry),
       path: a.path.slice(a.pathIndex),
     };
+  }
+
+  // Strip backend-only fields (e.g. cluster.members with full per-member
+  // positions) so the wire format stays lean. Entity entries pass through
+  // unchanged.
+  function serializeMemoryEntry(m) {
+    if (m.kind !== 'cluster') return m;
+    const { members, ...rest } = m;
+    return rest;
   }
 
   function listAll() { return all.slice(); }

@@ -35,6 +35,14 @@ router.get('/meta', (req, res) => {
     simulation: {
       tickMs: config.simulation.tickMs,
     },
+    perception: {
+      coneDeg: config.perception.coneDeg,
+      coneHalfAngleRad: config.perception.coneHalfAngleRad,
+      nearRadius: config.perception.nearRadius,
+      clusterRadius: config.perception.clusterRadius,
+      clusterMinCount: config.perception.clusterMinCount,
+      clusterDecayMultiplier: config.perception.clusterDecayMultiplier,
+    },
   });
 });
 

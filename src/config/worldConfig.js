@@ -17,6 +17,7 @@ function num(name, fallback) {
 }
 
 function buildConfig() {
+  const coneDeg = num('VISION_CONE_DEG', 100);
   const cfg = {
     seed: int('WORLD_SEED', 20260420),
     width: int('WORLD_WIDTH', 5120),
@@ -38,12 +39,36 @@ function buildConfig() {
       // anything deeper (or the deep_water ground type) is impassable.
       deepWaterThreshold: num('DEEP_WATER_THRESHOLD', 1.2),
     },
+    perception: {
+      // Full cone aperture in degrees (default 100°). Half-angle used for
+      // in-cone tests is derived once here.
+      coneDeg,
+      coneHalfAngleRad: (coneDeg * Math.PI) / 360, // = (deg/2) * pi/180
+      // Omnidirectional near-field radius in cells. Anything within this
+      // radius is visible regardless of facing (subject to LOS).
+      nearRadius: num('VISION_NEAR_RADIUS', 4),
+      // Memory entries with confidence below this value are evicted.
+      memoryDecayFloor: num('MEMORY_DECAY_FLOOR', 0.02),
+      // --- Memory clustering (v1: trees only) ---
+      // Max pairwise distance (cells) between same-type individual memories
+      // that still counts them as belonging to the same group.
+      clusterRadius: num('MEMORY_CLUSTER_RADIUS', 4),
+      // Minimum group size required before individuals collapse into a
+      // single cluster memory.
+      clusterMinCount: int('MEMORY_CLUSTER_MIN_COUNT', 3),
+      // Cluster memories decay at (memoryDecayRate / clusterDecayMultiplier)
+      // per tick, i.e. this many times slower than individuals. At 100 and
+      // the default 0.01 decay rate, clusters are effectively permanent
+      // within a session.
+      clusterDecayMultiplier: num('MEMORY_CLUSTER_DECAY_MULT', 100),
+    },
   };
   return Object.freeze({
     ...cfg,
     terrain: Object.freeze(cfg.terrain),
     simulation: Object.freeze(cfg.simulation),
     agents: Object.freeze(cfg.agents),
+    perception: Object.freeze(cfg.perception),
   });
 }
 

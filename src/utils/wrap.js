@@ -32,4 +32,22 @@ function wrappedDistance(ax, ay, bx, by, width, height) {
   return Math.sqrt(dx * dx + dy * dy);
 }
 
-module.exports = { wrap, wrapX, wrapY, chunkCoord, localInChunk, wrappedDistance };
+// Signed shortest delta on a torus axis: returns b-a reduced to (-size/2, size/2].
+// Useful when you need a direction, not just a magnitude (e.g. centroid math
+// across the wrap seam, facing calculations). Matches perception.js semantics.
+function shortestDelta(a, b, size) {
+  let d = b - a;
+  if (d > size / 2) d -= size;
+  else if (d < -size / 2) d += size;
+  return d;
+}
+
+module.exports = {
+  wrap,
+  wrapX,
+  wrapY,
+  chunkCoord,
+  localInChunk,
+  wrappedDistance,
+  shortestDelta,
+};
