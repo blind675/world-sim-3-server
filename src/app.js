@@ -6,6 +6,7 @@ const cors = require('cors');
 const worldRoutes = require('./routes/world');
 const entitiesRoutes = require('./routes/entities');
 const agentsRoutes = require('./routes/agents');
+const deathsRoutes = require('./routes/deaths');
 const { createSimulationRoutes } = require('./routes/simulation');
 
 function createApp() {
@@ -31,6 +32,7 @@ function createApp() {
   app.use('/api/world', worldRoutes);
   app.use('/api/entities', entitiesRoutes);
   app.use('/api', agentsRoutes);
+  app.use('/api/deaths', deathsRoutes);
   app.use('/api/simulation', createSimulationRoutes());
 
   app.use((req, res) => {

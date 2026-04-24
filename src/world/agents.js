@@ -108,6 +108,12 @@ function createAgentStore(config, terrain, chunkIndex) {
         hunger: 0,
         thirst: 0,
         tiredness: 0,
+        dead: false,
+        // M5 timed-action state. When state is eating/drinking/resting,
+        // actionTargetId is the object being consumed and ticksRemaining
+        // counts down to completion.
+        actionTargetId: null,
+        actionTicksRemaining: 0,
         traits: { ...DEFAULT_TRAITS },
         // Movement tracking for interpolation
         movementStartPos: null,
@@ -136,9 +142,12 @@ function createAgentStore(config, terrain, chunkIndex) {
       currentGoal: a.currentGoal,
       currentAction: a.currentAction,
       targetId: a.targetId,
+      actionTargetId: a.actionTargetId,
+      actionTicksRemaining: a.actionTicksRemaining,
       hunger: a.hunger,
       thirst: a.thirst,
       tiredness: a.tiredness,
+      dead: a.dead,
       traits: a.traits,
       pathLength: a.path.length,
       pathIndex: a.pathIndex,
@@ -242,7 +251,9 @@ function createAgentStore(config, terrain, chunkIndex) {
     if (agent.pathIndex >= agent.path.length) {
       agent.state = 'idle';
       agent.currentAction = null;
-      agent.currentGoal = null; // Clear goal so agent can get a new one
+      // Note: currentGoal is intentionally NOT cleared here. Simulation
+      // logic inspects the arrived-at goal to decide whether to begin a
+      // timed action (eat/drink/rest) and is responsible for clearing.
       // Clear movement data when path completes
       agent.movementStartPos = null;
       agent.targetPos = null;
@@ -272,6 +283,19 @@ function createAgentStore(config, terrain, chunkIndex) {
     return Array.from(changed);
   }
 
+  // Permanently remove an agent from the store (e.g. on death). Cleans up
+  // its chunk-index entry and all byId/all references. Safe to call with
+  // an unknown id (no-op).
+  function removeById(id) {
+    const agent = byId.get(id);
+    if (!agent) return false;
+    chunkIndex.removeAgentId(agent._cx, agent._cy, id);
+    byId.delete(id);
+    const idx = all.indexOf(agent);
+    if (idx >= 0) all.splice(idx, 1);
+    return true;
+  }
+
   return {
     spawnInitial,
     listAll,
@@ -281,6 +305,7 @@ function createAgentStore(config, terrain, chunkIndex) {
     stepAll,
     publicView,
     detailView,
+    removeById,
   };
 }
 

@@ -9,6 +9,7 @@
 
 const { splitmix32 } = require('../utils/prng');
 const { createPerlin4D } = require('./perlin');
+const { wrappedDistance } = require('../utils/wrap');
 
 // Candidate counts per 128x128 chunk. We sample more candidates than Phase 2a
 // because each one also has to pass a low-frequency density field (forest /
@@ -60,6 +61,17 @@ function acceptRest(cell) {
   return REST_GROUND.has(cell.groundType);
 }
 
+// Calculate altitude bias for spawning (0-1, higher = more likely to spawn)
+function altitudeBias(height, biasStrength, preferredMax) {
+  if (biasStrength <= 0) return 1.0;
+  // Normalize height to 0-1 range based on preferred maximum
+  const normalizedHeight = Math.max(0, Math.min(1, height / preferredMax));
+  // Lower altitude = higher bias
+  const bias = 1.0 - (biasStrength * normalizedHeight);
+  // Clamp to reasonable range
+  return Math.max(0.1, Math.min(1.0, bias));
+}
+
 // Hash two ints into a 32-bit seed. Combine with world seed to sub-seed
 // each chunk independently and reproducibly.
 function hashChunk(seed, cx, cy) {
@@ -72,10 +84,28 @@ function hashChunk(seed, cx, cy) {
 
 function createObjectStore(config, terrain, chunkIndex) {
   const { seed, chunkSize, width, height } = config;
+  const survival = config.survival;
+  const altitude = config.altitude;
   // chunkKey -> { objects: [...], generated: true }
   const byChunk = new Map();
-  // id -> object
+  // id -> object (static chunk-generated + dynamic spawned food)
   const byId = new Map();
+
+  // --- Food depletion + dynamic nodes (M5) ---
+  // food id -> remaining stock. Missing entries are treated as full stock.
+  const foodStock = new Map();
+  // food id -> tick at which it regrows (back to full stock). Only set
+  // while the node is depleted.
+  const regrowsAt = new Map();
+  // dynamic food nodes (spawned by spreading) — stored separately from
+  // the static per-chunk map so they don't pollute the seed-based cache.
+  // key: dynamicId -> { id, type:'food', x, y, cx, cy }
+  const dynamicFood = new Map();
+  // dynamic ids are keyed by a monotonic counter.
+  let dynamicCounter = 0;
+  // RNG for dynamic spread decisions — seeded from world seed so runs are
+  // reproducible within a session.
+  const spreadRng = splitmix32((seed ^ 0xbeeff00d) >>> 0);
 
   // --- Seamless density fields for clustering ---
   // Two independent noise layers (one for forests, one for outcrops). Mapped
@@ -184,6 +214,9 @@ function createObjectStore(config, terrain, chunkIndex) {
       if (d <= 0 || gate > d) continue;
       const cell = terrain.cellAt(x, y);
       if (!acceptFood(cell)) continue;
+      // Apply altitude bias
+      const altBias = altitudeBias(cell.height, altitude.foodAltitudeBiasStrength, altitude.preferredAltitudeMax);
+      if (rngF() > altBias) continue;
       objects.push({ id: `f-${cx}-${cy}-${i}`, type: 'food', x, y });
     }
 
@@ -214,6 +247,9 @@ function createObjectStore(config, terrain, chunkIndex) {
       if (d < 0.55 || gate > d) continue;
       const cell = terrain.cellAt(x, y);
       if (!acceptRest(cell)) continue;
+      // Apply altitude bias
+      const altBias = altitudeBias(cell.height, altitude.restAltitudeBiasStrength, altitude.preferredAltitudeMax);
+      if (rngRS() > altBias) continue;
       objects.push({ id: `rs-${cx}-${cy}-${i}`, type: 'rest_spot', x, y });
     }
 
@@ -254,6 +290,22 @@ function createObjectStore(config, terrain, chunkIndex) {
           out.push(obj);
         }
       }
+      // Dynamic food lives in the chunk index under objectIds but not in
+      // the per-chunk static object list; iterate the chunk's objectIds to
+      // find them.
+      const chunk = chunkIndex.getChunk(cx, cy);
+      for (const id of chunk.objectIds) {
+        const dyn = dynamicFood.get(id);
+        if (!dyn) continue;
+        if (typesSet && !typesSet.has(dyn.type)) continue;
+        let dx = dyn.x - x;
+        dx = ((dx % W) + W) % W;
+        let dy = dyn.y - y;
+        dy = ((dy % H) + H) % H;
+        if (dx < w && dy < h) {
+          out.push({ id: dyn.id, type: dyn.type, x: dyn.x, y: dyn.y });
+        }
+      }
     }
     return out;
   }
@@ -262,10 +314,136 @@ function createObjectStore(config, terrain, chunkIndex) {
     return byId.get(id) || null;
   }
 
+  // --- Food depletion helpers ---
+
+  // Returns true if the food node is currently harvestable (has stock
+  // remaining). Non-food ids are always considered available.
+  function isAvailable(id, tick) {
+    const obj = byId.get(id);
+    if (!obj || obj.type !== 'food') return true;
+    if (!regrowsAt.has(id)) return true;
+    return (regrowsAt.get(id) | 0) <= tick;
+  }
+
+  // Called once when an agent finishes an eat action. Decrements stock and
+  // schedules regrowth when the last stock is consumed.
+  function consumeFood(id, tick) {
+    const obj = byId.get(id);
+    if (!obj || obj.type !== 'food') return;
+    const current = foodStock.has(id) ? foodStock.get(id) : survival.foodStock;
+    const next = current - 1;
+    if (next <= 0) {
+      foodStock.set(id, 0);
+      regrowsAt.set(id, tick + survival.foodRegrowTicks);
+    } else {
+      foodStock.set(id, next);
+    }
+  }
+
+  // Count food nodes (static + dynamic, excluding depleted) within radius
+  // of a point. Used for the local density cap when spreading.
+  function countFoodWithinRadius(x, y, radius, tick) {
+    const side = Math.ceil(radius * 2) + 2;
+    const rx = Math.floor(x - radius - 1);
+    const ry = Math.floor(y - radius - 1);
+    const found = queryRect(rx, ry, side, side, new Set(['food']));
+    let n = 0;
+    for (const o of found) {
+      if (!isAvailable(o.id, tick)) continue;
+      if (wrappedDistance(x, y, o.x, o.y, width, height) <= radius) n++;
+    }
+    return n;
+  }
+
+  // Spawn a new dynamic food node near (srcX, srcY). Returns the created
+  // node or null if the attempt was rejected (off-terrain / density cap).
+  function trySpreadFood(srcX, srcY, tick) {
+    const radius = survival.foodSpreadRadius;
+    // Pick a random point inside a disc of the spread radius.
+    const angle = spreadRng() * Math.PI * 2;
+    const dist = Math.sqrt(spreadRng()) * radius;
+    const nxRaw = srcX + Math.cos(angle) * dist;
+    const nyRaw = srcY + Math.sin(angle) * dist;
+    const nx = ((Math.round(nxRaw) % width) + width) % width;
+    const ny = ((Math.round(nyRaw) % height) + height) % height;
+    if (nx === srcX && ny === srcY) return null;
+
+    const cell = terrain.cellAt(nx, ny);
+    if (!acceptFood(cell)) return null;
+
+    // Density cap — avoid piling new nodes onto crowded areas.
+    if (countFoodWithinRadius(nx, ny, survival.foodDensityRadius, tick) >= survival.foodDensityMax) {
+      return null;
+    }
+
+    dynamicCounter += 1;
+    const id = `fd-${dynamicCounter}`;
+    const cx = Math.floor(nx / chunkSize);
+    const cy = Math.floor(ny / chunkSize);
+    const node = { id, type: 'food', x: nx, y: ny, cx, cy };
+    dynamicFood.set(id, node);
+    byId.set(id, { id, type: 'food', x: nx, y: ny });
+    chunkIndex.addObjectId(cx, cy, id);
+    return node;
+  }
+
+  // Called every tick: recover food nodes whose regrowth timer has elapsed.
+  // On recovery each node also tries to spawn one child (on-regrowth spread).
+  function tickRegrowth(tick) {
+    if (regrowsAt.size === 0) return;
+    const toClear = [];
+    for (const [id, when] of regrowsAt) {
+      if (when <= tick) toClear.push(id);
+    }
+    for (const id of toClear) {
+      regrowsAt.delete(id);
+      foodStock.set(id, survival.foodStock);
+      const src = byId.get(id);
+      if (src) trySpreadFood(src.x, src.y, tick);
+    }
+  }
+
+  // Called periodically (tick % foodSpreadInterval === 0): every active
+  // food node has a small chance to spawn a child nearby.
+  function tickFoodSpread(tick) {
+    if (survival.foodSpreadInterval <= 0) return;
+    if (tick % survival.foodSpreadInterval !== 0) return;
+    if (survival.foodSpreadChance <= 0) return;
+
+    // Iterate static food nodes via byId (they were registered when their
+    // owning chunk was first generated) and all dynamic nodes.
+    for (const [id, obj] of byId) {
+      if (obj.type !== 'food') continue;
+      if (!isAvailable(id, tick)) continue;
+      if (spreadRng() >= survival.foodSpreadChance) continue;
+      trySpreadFood(obj.x, obj.y, tick);
+    }
+  }
+
+  // Debug helper: snapshot depletion state for a single food node.
+  function getFoodState(id, tick) {
+    const obj = byId.get(id);
+    if (!obj || obj.type !== 'food') return null;
+    const depleted = regrowsAt.has(id);
+    return {
+      id,
+      stock: foodStock.has(id) ? foodStock.get(id) : survival.foodStock,
+      depleted,
+      regrowsAt: depleted ? regrowsAt.get(id) : null,
+      ticksUntilRegrow: depleted ? Math.max(0, regrowsAt.get(id) - tick) : 0,
+      dynamic: dynamicFood.has(id),
+    };
+  }
+
   return {
     getObjectsInChunk,
     queryRect,
     getById,
+    isAvailable,
+    consumeFood,
+    tickRegrowth,
+    tickFoodSpread,
+    getFoodState,
   };
 }
 

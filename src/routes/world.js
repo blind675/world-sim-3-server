@@ -43,6 +43,14 @@ router.get('/meta', (req, res) => {
       clusterMinCount: config.perception.clusterMinCount,
       clusterDecayMultiplier: config.perception.clusterDecayMultiplier,
     },
+    altitude: {
+      uphillPenaltyMultiplier: config.altitude.uphillPenaltyMultiplier,
+      downhillBonusMultiplier: config.altitude.downhillBonusMultiplier,
+      altitudeDiffThreshold: config.altitude.altitudeDiffThreshold,
+      foodAltitudeBiasStrength: config.altitude.foodAltitudeBiasStrength,
+      restAltitudeBiasStrength: config.altitude.restAltitudeBiasStrength,
+      preferredAltitudeMax: config.altitude.preferredAltitudeMax,
+    },
   });
 });
 

@@ -90,6 +90,7 @@ function findPath(world, start, goal, opts = {}) {
   const W = config.width;
   const H = config.height;
   const deepWaterThreshold = config.agents.deepWaterThreshold;
+  const altitudeConfig = config.altitude;
   const maxNodes = opts.maxNodes || 200000;
 
   const sx = wrap(start.x | 0, W);
@@ -143,7 +144,9 @@ function findPath(world, start, goal, opts = {}) {
       const nk = cellKey(nx, ny, W);
       const ncell = terrain.cellAt(nx, ny);
       if (isBlocked(ncell, deepWaterThreshold)) continue;
-      const tentative = curG + ncell.baseMoveCost;
+      // Use altitude-aware movement cost
+      const moveCost = terrain.moveCostWithAltitude(cur.x, cur.y, nx, ny, altitudeConfig);
+      const tentative = curG + moveCost;
       const prevG = gScore.get(nk);
       if (prevG !== undefined && tentative >= prevG) continue;
       gScore.set(nk, tentative);

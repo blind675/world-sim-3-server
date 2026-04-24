@@ -23,10 +23,11 @@
 const { wrappedDistance, shortestDelta, wrap } = require('../utils/wrap');
 
 // Types that may collapse into a cluster memory when enough same-type
-// individuals are observed close together. Trees form "forests". Agents
-// are intentionally excluded (they move, which would staleize clusters
-// immediately). Widen this set in later milestones for rocks / resources.
-const CLUSTER_TYPES = new Set(['tree']);
+// individuals are observed close together. Trees form "forests", rocks
+// become "outcrops", food becomes "berry patches", and water sources
+// become "springs". Agents are intentionally excluded (they move, which
+// would staleize clusters immediately).
+const CLUSTER_TYPES = new Set(['tree', 'rock', 'food', 'water_source']);
 
 // Each agent needs cluster IDs that are unique at least within its own
 // memory; a module-level counter is sufficient because cluster IDs only
@@ -308,7 +309,7 @@ function updateAgentMemory(agent, visible, tick, config) {
     clusterRadius, clusterMinCount, width, height,
   );
 
-  const entityDecay = 1 - memoryDecayRate;
+  const entityDecay = 1 - perceptionCfg.entityMemoryDecayRate;
   const clusterDecay = 1 - memoryDecayRate / clusterDecayMultiplier;
   decayAndFilter(memory, seenNow, entityDecay, clusterDecay, floor);
 

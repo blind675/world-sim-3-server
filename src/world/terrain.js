@@ -147,12 +147,37 @@ function createTerrain(config) {
     };
   }
 
+  // Calculate movement cost including altitude penalties/bonuses
+  function moveCostWithAltitude(fromX, fromY, toX, toY, altitudeConfig) {
+    const fromCell = cellAt(fromX, fromY);
+    const toCell = cellAt(toX, toY);
+
+    // Base cost from terrain type
+    const baseCost = toCell.baseMoveCost;
+    if (!Number.isFinite(baseCost)) return Infinity;
+
+    // Calculate altitude difference
+    const heightDiff = toCell.height - fromCell.height;
+    const { uphillPenaltyMultiplier, downhillBonusMultiplier, altitudeDiffThreshold } = altitudeConfig;
+
+    // Apply altitude modifier if difference exceeds threshold
+    let multiplier = 1.0;
+    if (heightDiff > altitudeDiffThreshold) {
+      multiplier = uphillPenaltyMultiplier;
+    } else if (heightDiff < -altitudeDiffThreshold) {
+      multiplier = downhillBonusMultiplier;
+    }
+
+    return baseCost * multiplier;
+  }
+
   return {
     heightAt,
     slopeAt,
     groundTypeAt,
     waterDepthAt,
     cellAt,
+    moveCostWithAltitude,
     constants: { MOVE_COST, VISION_BLOCK },
   };
 }

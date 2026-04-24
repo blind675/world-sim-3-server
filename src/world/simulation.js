@@ -1,119 +1,172 @@
 'use strict';
 
-const { isCellPathable } = require('./agents');
 const { findPath } = require('./pathfinding');
 const { updateAgentMemory } = require('./memory');
+const {
+  decayNeeds,
+  tickAction,
+  beginActionIfArrived,
+  pickUrgentNeed,
+  pickMemoryTargetForType,
+  NEED_TO_MEMORY_TYPE,
+} = require('./needs');
 
 let singleton = null;
 
 function createSimulation(world) {
   if (singleton) return singleton;
 
-  const { config, agents, perception } = world;
+  const { config, agents, objects, perception, deaths } = world;
   const { simulation: simConfig } = config;
   const tickMs = simConfig.tickMs || 200;
 
   let tickCount = 0;
   let intervalId = null;
+  let deathCount = 0;
 
   function tick() {
     tickCount++;
 
-    // Update all agents
+    // World-level timers (food regrowth + periodic spread) run once per
+    // tick regardless of agent state.
+    objects.tickRegrowth(tickCount);
+    objects.tickFoodSpread(tickCount);
+
+    // Snapshot the agent list so removals mid-tick don't reshape the
+    // iteration. Dead agents are removed at the end of their update.
     const allAgents = agents.listAll();
+    const toRemove = [];
 
     for (const agent of allAgents) {
       updateAgent(agent, world, tickCount);
+      if (agent.dead) toRemove.push(agent.id);
     }
 
-    // Clean up any dead agents, resources, etc. (future)
+    for (const id of toRemove) {
+      const agent = agents.getById(id);
+      if (agent) {
+        // Determine cause of death
+        let cause = 'unknown';
+        if (agent.hunger >= 1) cause = 'hunger';
+        else if (agent.thirst >= 1) cause = 'thirst';
+        else if (agent.tiredness >= 1) cause = 'tiredness';
+
+        // Record death location
+        deaths.addDeath(id, agent.x, agent.y, tickCount, cause);
+      }
+      agents.removeById(id);
+      deathCount++;
+    }
 
     if (tickCount % 100 === 0) {
-      console.log(`[simulation] tick ${tickCount} - ${allAgents.length} agents updated`);
+      const alive = agents.listAll().length;
+      console.log(
+        `[simulation] tick ${tickCount} - ${alive} alive, ${deathCount} deaths total`,
+      );
     }
   }
 
-  // Goal-selection probability per idle tick. Kept at 30% to match the
-  // prior behavior and avoid making agents too twitchy.
-  const GOAL_PROB = 0.3;
-  // Fraction of new goals that prefer a remembered food/water target
-  // (over a pure random wander). Tuned so behavior is visibly influenced
-  // by memory without fully replacing exploration.
-  const MEMORY_GOAL_BIAS = 0.6;
-  const INTERESTING_TYPES = new Set(['food', 'water_source']);
+  // Probability of picking a new wander goal on any given idle tick when
+  // no need is urgent. Kept at 30% to match pre-M5 behavior.
+  const WANDER_GOAL_PROB = 0.3;
+  // When an urgent need exists, always attempt to act on it (no RNG gate).
 
-  function pickMemoryTarget(agent) {
-    // TODO(clusters): when food/water are added to CLUSTER_TYPES in memory.js,
-    // cluster memories of those types should be valid targets too (use the
-    // cluster centroid as targetX/targetY, and set goal.memoryKind='cluster').
-    // Trees are the only clusterable type today and aren't in INTERESTING_TYPES,
-    // so this filter naturally skips clusters for now.
-    const candidates = agent.memory.filter(
-      (m) => m.kind !== 'cluster' && INTERESTING_TYPES.has(m.type),
-    );
-    if (candidates.length === 0) return null;
-    // Highest confidence first, with a small recency tiebreak.
-    candidates.sort((a, b) => {
-      if (b.confidence !== a.confidence) return b.confidence - a.confidence;
-      return b.lastSeenTick - a.lastSeenTick;
-    });
-    return candidates[0];
+  // Pick a goal for an idle agent. Priority order:
+  // 1. Highest-value need above threshold -> seek_food/seek_water/seek_rest
+  // 2. Otherwise, occasional random wander (same as before)
+  function pickGoal(agent) {
+    const urgent = pickUrgentNeed(agent, config);
+    if (urgent) {
+      const memType = NEED_TO_MEMORY_TYPE[urgent.need];
+      const mem = pickMemoryTargetForType(agent, memType);
+      if (mem) {
+        return {
+          type: urgent.goal,
+          targetX: mem.x,
+          targetY: mem.y,
+          memoryId: mem.id,
+          memoryConfidence: mem.confidence,
+        };
+      }
+      // No memory of a suitable resource — wander far to explore and
+      // hopefully stumble into one. Pick a wider random hop.
+      return pickWanderGoal(agent, 40, 80, urgent.goal);
+    }
+
+    if (Math.random() < WANDER_GOAL_PROB) {
+      return pickWanderGoal(agent, 20, 50, 'wander');
+    }
+    return null;
+  }
+
+  function pickWanderGoal(agent, minDist, maxDist, type) {
+    const span = Math.max(1, maxDist - minDist);
+    const rng = Math.random();
+    const dist = minDist + Math.floor(rng * span);
+    const angle = Math.random() * Math.PI * 2;
+    let tx = Math.floor(agent.x + Math.cos(angle) * dist);
+    let ty = Math.floor(agent.y + Math.sin(angle) * dist);
+    tx = ((tx % config.width) + config.width) % config.width;
+    ty = ((ty % config.height) + config.height) % config.height;
+    return { type, targetX: tx, targetY: ty };
   }
 
   function updateAgent(agent, world, currentTick) {
-    // Perception + memory run first so behavior can use the freshest info.
+    // 1. Perception + memory always run first so behaviour uses fresh info.
     const visible = perception.perceiveAgent(agent);
     updateAgentMemory(agent, visible, currentTick, world.config);
 
-    // Basic wandering behavior for now, biased toward remembered resources.
-    // Will be expanded with needs-driven decisions in Milestone 5.
+    // 2. Needs decay. This may flip agent.dead = true; caller removes it
+    //    from the store after this function returns.
+    decayNeeds(agent, config);
+    if (agent.dead) return;
 
-    if (!agent.currentGoal && Math.random() < GOAL_PROB) {
-      let targetX;
-      let targetY;
-      let goal;
-
-      const memTarget = Math.random() < MEMORY_GOAL_BIAS ? pickMemoryTarget(agent) : null;
-      if (memTarget) {
-        targetX = memTarget.x;
-        targetY = memTarget.y;
-        goal = {
-          type: memTarget.type === 'food' ? 'seek_food' : 'seek_water',
-          targetX,
-          targetY,
-          memoryId: memTarget.id,
-          memoryConfidence: memTarget.confidence,
-        };
-      } else {
-        // Fall back to random wander.
-        const rng = Math.random();
-        const wanderDistance = 20 + Math.floor(rng * 30); // 20-50 cells
-        const angle = rng * Math.PI * 2;
-        targetX = Math.floor(agent.x + Math.cos(angle) * wanderDistance);
-        targetY = Math.floor(agent.y + Math.sin(angle) * wanderDistance);
-        targetX = (targetX + world.config.width) % world.config.width;
-        targetY = (targetY + world.config.height) % world.config.height;
-        goal = { type: 'wander', targetX, targetY };
-      }
-
-      agent.currentGoal = goal;
-
-      const path = findPath(world, { x: agent.x, y: agent.y }, { x: targetX, y: targetY });
-      if (path) {
-        agents.setPath(agent, path);
-      } else {
-        agent.currentGoal = null;
-        agent.currentAction = null;
-      }
+    // 3. If the agent is mid-action (eat/drink/rest), tick it. Skip goal
+    //    selection entirely this tick regardless of completion.
+    if (
+      agent.state === 'eating'
+      || agent.state === 'drinking'
+      || agent.state === 'resting'
+    ) {
+      tickAction(agent, objects, config, currentTick);
+      return;
     }
 
-    // Execute movement if agent has a path
+    // 4. If a path is in progress, advance one step. On arrival, see if
+    //    the goal was a seek_* and try to begin the matching action.
     if (agent.path && agent.path.length > 0 && agent.pathIndex < agent.path.length) {
-      // Use the agent store's stepAgent function for movement tracking
       agents.stepAgent(agent, currentTick);
+      const arrived = agent.pathIndex >= agent.path.length;
+      if (arrived) {
+        if (beginActionIfArrived(agent, objects, config, currentTick)) {
+          return; // Action started; ready to tick next turn.
+        }
+        // Arrived but no matching object (e.g. memory was stale or food
+        // got depleted before we got here). Clear the goal so idle logic
+        // can pick a fresh one next tick.
+        agent.currentGoal = null;
+      }
+      return;
+    }
+
+    // 5. Idle: pick a goal (needs-driven or wander).
+    const goal = pickGoal(agent);
+    if (!goal) return;
+
+    const path = findPath(
+      world,
+      { x: agent.x, y: agent.y },
+      { x: goal.targetX, y: goal.targetY },
+    );
+    if (path && path.length > 0) {
+      agent.currentGoal = goal;
+      agents.setPath(agent, path);
+    } else {
+      // Pathfinding failed — stay idle, don't latch a goal we can't reach.
+      agent.currentGoal = null;
+      agent.currentAction = null;
     }
   }
-
 
   // Auto-start the simulation
   intervalId = setInterval(tick, tickMs);
@@ -123,12 +176,13 @@ function createSimulation(world) {
     return {
       tickCount,
       tickMs,
-      agentCount: agents.listAll().length
+      agentCount: agents.listAll().length,
+      deathCount,
     };
   }
 
   singleton = {
-    getStatus
+    getStatus,
   };
 
   return singleton;
