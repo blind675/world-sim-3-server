@@ -72,11 +72,12 @@ const DIRS = [
   [0, -1],
 ];
 
-function isBlocked(cell, deepWaterThreshold) {
+function isBlocked(cell, deepWaterThreshold, agentAt = null) {
   if (!cell) return true;
   if (cell.groundType === 'deep_water') return true;
   if (cell.waterDepth > deepWaterThreshold) return true;
   if (!Number.isFinite(cell.baseMoveCost)) return true;
+  if (agentAt) return true; // Cell occupied by another agent
   return false;
 }
 
@@ -84,9 +85,21 @@ function cellKey(x, y, W) {
   return y * W + x;
 }
 
+// Helper function to check if an agent is at a specific location
+function isAgentAt(x, y, agents, chunkIndex, excludeAgentId = null) {
+  // Use chunk index for efficient lookup
+  const chunk = chunkIndex.getChunkFromWorld(x, y);
+  for (const id of chunk.agentIds) {
+    if (excludeAgentId && id === excludeAgentId) continue;
+    const agent = agents.getById(id);
+    if (agent && agent.x === x && agent.y === y) return true;
+  }
+  return false;
+}
+
 // Returns an array of { x, y } cells (excluding start) to walk, or null.
 function findPath(world, start, goal, opts = {}) {
-  const { config, terrain } = world;
+  const { config, terrain, agents, chunkIndex } = world;
   const W = config.width;
   const H = config.height;
   const deepWaterThreshold = config.agents.deepWaterThreshold;
@@ -100,9 +113,10 @@ function findPath(world, start, goal, opts = {}) {
 
   if (sx === gx && sy === gy) return [];
 
-  // Goal must be reachable (walkable).
+  // Goal must be reachable (walkable and not occupied by another agent).
   const goalCell = terrain.cellAt(gx, gy);
-  if (isBlocked(goalCell, deepWaterThreshold)) return null;
+  const goalOccupied = isAgentAt(gx, gy, agents, chunkIndex, opts.excludeAgentId);
+  if (isBlocked(goalCell, deepWaterThreshold, goalOccupied)) return null;
 
   const startKey = cellKey(sx, sy, W);
   const goalKey = cellKey(gx, gy, W);
@@ -143,7 +157,8 @@ function findPath(world, start, goal, opts = {}) {
       const ny = wrap(cur.y + dy, H);
       const nk = cellKey(nx, ny, W);
       const ncell = terrain.cellAt(nx, ny);
-      if (isBlocked(ncell, deepWaterThreshold)) continue;
+      const occupied = isAgentAt(nx, ny, agents, chunkIndex, opts.excludeAgentId);
+      if (isBlocked(ncell, deepWaterThreshold, occupied)) continue;
       // Use altitude-aware movement cost
       const moveCost = terrain.moveCostWithAltitude(cur.x, cur.y, nx, ny, altitudeConfig);
       const tentative = curG + moveCost;

@@ -82,7 +82,7 @@ router.post('/agents/:id/path', (req, res, next) => {
     const gx = wrap(tx, config.width);
     const gy = wrap(ty, config.height);
 
-    const path = findPath(world, { x: a.x, y: a.y }, { x: gx, y: gy });
+    const path = findPath(world, { x: a.x, y: a.y }, { x: gx, y: gy }, { excludeAgentId: a.id });
     if (path === null) {
       agents.setPath(a, []);
       return res.status(422).json({ error: 'no_path', from: { x: a.x, y: a.y }, to: { x: gx, y: gy } });

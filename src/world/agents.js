@@ -40,6 +40,54 @@ function createAgentStore(config, terrain, chunkIndex) {
   const deepWaterThreshold = agentCfg.deepWaterThreshold;
   const desiredCount = agentCfg.count;
 
+  // --- Collision avoidance (M6) ---
+  const AVOIDANCE_DISTANCE = 2; // Minimum distance to maintain between agents
+  const AVOIDANCE_FORCE = 0.3; // Strength of repulsion force
+
+  // Calculate repulsion force from nearby agents
+  function calculateRepulsionForce(agent, agentMap, chunkIndex) {
+    let forceX = 0;
+    let forceY = 0;
+
+    // Check nearby chunks for agents
+    const bboxX = agent.x - AVOIDANCE_DISTANCE;
+    const bboxY = agent.y - AVOIDANCE_DISTANCE;
+    const bboxW = AVOIDANCE_DISTANCE * 2 + 1;
+    const bboxH = AVOIDANCE_DISTANCE * 2 + 1;
+
+    const chunks = chunkIndex.chunksInRect(bboxX, bboxY, bboxW, bboxH);
+
+    for (const { cx, cy } of chunks) {
+      const chunk = chunkIndex.getChunk(cx, cy);
+      for (const id of chunk.agentIds) {
+        if (id === agent.id) continue;
+        const other = agentMap.get(id);
+        if (!other) continue;
+
+        // Calculate distance with world wrapping
+        let dx = other.x - agent.x;
+        let dy = other.y - agent.y;
+
+        // Handle world wrapping
+        if (dx > width / 2) dx -= width;
+        else if (dx < -width / 2) dx += width;
+        if (dy > height / 2) dy -= height;
+        else if (dy < -height / 2) dy += height;
+
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        // Apply repulsion force if within avoidance distance
+        if (distance < AVOIDANCE_DISTANCE && distance > 0) {
+          const force = AVOIDANCE_FORCE * (1 - distance / AVOIDANCE_DISTANCE);
+          forceX -= (dx / distance) * force;
+          forceY -= (dy / distance) * force;
+        }
+      }
+    }
+
+    return { forceX, forceY };
+  }
+
   const byId = new Map();
   const all = []; // preserves spawn order
 
@@ -235,6 +283,12 @@ function createAgentStore(config, terrain, chunkIndex) {
     }
 
     // Movement already in progress - complete it now
+    let finalX = nx;
+    let finalY = ny;
+
+    // TODO: Apply collision avoidance forces (simplified for now)
+    // Collision avoidance will be refined in future iterations
+
     agent.x = nx;
     agent.y = ny;
     agent.pathIndex++;

@@ -107,6 +107,12 @@ function createObjectStore(config, terrain, chunkIndex) {
   // reproducible within a session.
   const spreadRng = splitmix32((seed ^ 0xbeeff00d) >>> 0);
 
+  // --- Resource queuing (M6) ---
+  // resource id -> array of agent ids waiting in queue
+  const resourceQueues = new Map();
+  // agent id -> resource id they're waiting for
+  const agentWaitingFor = new Map();
+
   // --- Seamless density fields for clustering ---
   // Two independent noise layers (one for forests, one for outcrops). Mapped
   // onto 4D circles the same way as terrain.js so the fields wrap seamlessly.
@@ -435,6 +441,53 @@ function createObjectStore(config, terrain, chunkIndex) {
     };
   }
 
+  // --- Resource queuing functions ---
+
+  // Check if a resource has agents waiting in queue
+  function getQueueLength(resourceId) {
+    const queue = resourceQueues.get(resourceId);
+    return queue ? queue.length : 0;
+  }
+
+  // Add agent to resource queue
+  function joinQueue(agentId, resourceId) {
+    if (!resourceQueues.has(resourceId)) {
+      resourceQueues.set(resourceId, []);
+    }
+    const queue = resourceQueues.get(resourceId);
+    if (!queue.includes(agentId)) {
+      queue.push(agentId);
+      agentWaitingFor.set(agentId, resourceId);
+    }
+  }
+
+  // Remove agent from resource queue
+  function leaveQueue(agentId) {
+    const resourceId = agentWaitingFor.get(agentId);
+    if (resourceId) {
+      const queue = resourceQueues.get(resourceId);
+      if (queue) {
+        const index = queue.indexOf(agentId);
+        if (index !== -1) {
+          queue.splice(index, 1);
+        }
+      }
+      agentWaitingFor.delete(agentId);
+    }
+  }
+
+  // Get the next agent in queue for a resource
+  function getNextInQueue(resourceId) {
+    const queue = resourceQueues.get(resourceId);
+    return queue && queue.length > 0 ? queue[0] : null;
+  }
+
+  // Check if agent is at front of queue
+  function isAtFrontOfQueue(agentId, resourceId) {
+    const queue = resourceQueues.get(resourceId);
+    return queue && queue.length > 0 && queue[0] === agentId;
+  }
+
   return {
     getObjectsInChunk,
     queryRect,
@@ -444,6 +497,11 @@ function createObjectStore(config, terrain, chunkIndex) {
     tickRegrowth,
     tickFoodSpread,
     getFoodState,
+    getQueueLength,
+    joinQueue,
+    leaveQueue,
+    getNextInQueue,
+    isAtFrontOfQueue,
   };
 }
 

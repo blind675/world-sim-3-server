@@ -170,10 +170,28 @@ function beginActionIfArrived(agent, objects, config, currentTick) {
   }
   if (!best) return false;
 
+  // Check if another agent is already using this resource
+  const queueLength = objects.getQueueLength(best.id);
+  const nextInQueue = objects.getNextInQueue(best.id);
+
+  // If resource is occupied and this agent is not at front of queue, make them wait
+  if (queueLength > 0 && !objects.isAtFrontOfQueue(agent.id, best.id)) {
+    // Join the queue if not already in it
+    objects.joinQueue(agent.id, best.id);
+    agent.state = 'waiting';
+    agent.currentAction = 'waiting';
+    agent.actionTargetId = best.id;
+    return true; // Successfully started waiting
+  }
+
+  // Resource is available or agent is at front of queue
   agent.state = actionState;
   agent.currentAction = actionState;
   agent.actionTargetId = best.id;
   agent.actionTicksRemaining = config.survival.actionTicks;
+
+  // Remove from queue when starting action
+  objects.leaveQueue(agent.id);
   return true;
 }
 

@@ -9,6 +9,7 @@ const {
   pickUrgentNeed,
   pickMemoryTargetForType,
   NEED_TO_MEMORY_TYPE,
+  GOAL_TO_ACTION,
 } = require('./needs');
 
 let singleton = null;
@@ -23,6 +24,46 @@ function createSimulation(world) {
   let tickCount = 0;
   let intervalId = null;
   let deathCount = 0;
+
+  // Helper function to calculate agent density in a given area
+  function calculateAgentDensity(centerX, centerY, radius) {
+    const { chunkIndex } = world;
+    const bboxX = centerX - radius;
+    const bboxY = centerY - radius;
+    const bboxW = radius * 2 + 1;
+    const bboxH = radius * 2 + 1;
+
+    const chunks = chunkIndex.chunksInRect(bboxX, bboxY, bboxW, bboxH);
+    let nearbyAgents = 0;
+
+    for (const { cx, cy } of chunks) {
+      const chunk = chunkIndex.getChunk(cx, cy);
+      nearbyAgents += chunk.agentIds.length;
+    }
+
+    return nearbyAgents;
+  }
+
+  // Helper function to find alternative memory target of same type
+  function pickAlternativeMemoryTarget(agent, memType, excludeId) {
+    const memories = agent.memory || [];
+    const candidates = memories
+      .filter(mem => mem.type === memType && mem.id !== excludeId)
+      .filter(mem => mem.confidence > 0.3) // Only consider reasonably fresh memories
+      .sort((a, b) => b.confidence - a.confidence); // Sort by confidence
+
+    // Return the highest confidence alternative, if any
+    return candidates.length > 0 ? candidates[0] : null;
+  }
+
+  // Helper function to advance queue when a resource becomes available
+  function advanceQueue(resourceId, objects) {
+    const nextAgentId = objects.getNextInQueue(resourceId);
+    if (nextAgentId) {
+      // The next agent will be processed in their next tick
+      // No immediate action needed - they'll check if they're at front of queue
+    }
+  }
 
   function tick() {
     tickCount++;
@@ -73,13 +114,35 @@ function createSimulation(world) {
 
   // Pick a goal for an idle agent. Priority order:
   // 1. Highest-value need above threshold -> seek_food/seek_water/seek_rest
-  // 2. Otherwise, occasional random wander (same as before)
+  // 2. Check if target area is too crowded (> 5 agents in 10-cell radius)
+  // 3. Otherwise, occasional random wander (same as before)
   function pickGoal(agent) {
     const urgent = pickUrgentNeed(agent, config);
     if (urgent) {
       const memType = NEED_TO_MEMORY_TYPE[urgent.need];
       const mem = pickMemoryTargetForType(agent, memType);
       if (mem) {
+        // Check agent density around target location
+        const densityRadius = 10; // 10-cell radius for density check
+        const nearbyAgents = calculateAgentDensity(mem.x, mem.y, densityRadius);
+
+        // If area is too crowded (>5 agents), look for alternative or wander
+        if (nearbyAgents > 5) {
+          // Try to find alternative memory of same type
+          const altMem = pickAlternativeMemoryTarget(agent, memType, mem.id);
+          if (altMem) {
+            return {
+              type: urgent.goal,
+              targetX: altMem.x,
+              targetY: altMem.y,
+              memoryId: altMem.id,
+              memoryConfidence: altMem.confidence,
+            };
+          }
+          // No alternative found - wander away from crowded area
+          return pickWanderGoal(agent, 40, 80, urgent.goal);
+        }
+
         return {
           type: urgent.goal,
           targetX: mem.x,
@@ -129,6 +192,29 @@ function createSimulation(world) {
       || agent.state === 'resting'
     ) {
       tickAction(agent, objects, config, currentTick);
+
+      // If action completed, advance the queue for this resource
+      if (agent.state === 'idle' && agent.actionTargetId) {
+        advanceQueue(agent.actionTargetId, objects);
+      }
+      return;
+    }
+
+    // 3b. If the agent is waiting, check if they can now use the resource
+    if (agent.state === 'waiting') {
+      if (agent.actionTargetId && objects.isAtFrontOfQueue(agent.id, agent.actionTargetId)) {
+        // Agent is at front of queue, try to start the action
+        const goal = agent.currentGoal;
+        if (goal) {
+          const actionState = GOAL_TO_ACTION[goal.type];
+          if (actionState) {
+            agent.state = actionState;
+            agent.currentAction = actionState;
+            agent.actionTicksRemaining = config.survival.actionTicks;
+            objects.leaveQueue(agent.id);
+          }
+        }
+      }
       return;
     }
 
@@ -157,6 +243,7 @@ function createSimulation(world) {
       world,
       { x: agent.x, y: agent.y },
       { x: goal.targetX, y: goal.targetY },
+      { excludeAgentId: agent.id }
     );
     if (path && path.length > 0) {
       agent.currentGoal = goal;
