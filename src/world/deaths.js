@@ -1,5 +1,5 @@
-// Store for agent death locations with timestamps
-// This allows visual representation of where agents died
+// Store for agent death records with timestamps and causes
+// Tracks death statistics without location data
 
 let singleton = null;
 
@@ -9,12 +9,10 @@ function createDeathStore() {
   const deaths = []; // Array of death records
   const maxDeaths = 1000; // Limit to prevent memory growth
 
-  function addDeath(agentId, x, y, tick, cause) {
+  function addDeath(agentId, tick, cause) {
     const death = {
       id: `death:${agentId}:${tick}`,
       agentId,
-      x,
-      y,
       tick,
       cause, // 'hunger', 'thirst', 'tiredness'
       timestamp: Date.now(),

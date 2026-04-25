@@ -268,4 +268,104 @@ router.get('/cell', (req, res, next) => {
   }
 });
 
+/**
+ * GET /api/world/statistics
+ * Returns comprehensive world statistics including agent counts, deaths, and resources
+ */
+router.get('/statistics', (req, res) => {
+  try {
+    console.log('[statistics] Starting statistics endpoint...');
+    const { config, agents, objects, deaths, simulation } = getWorld();
+    console.log('[statistics] World components loaded successfully');
+
+    // Get all agents
+    console.log('[statistics] Getting agents...');
+    const allAgents = agents.listAll();
+    const aliveAgents = allAgents.filter(agent => !agent.dead);
+    console.log('[statistics] Agents processed:', aliveAgents.length, 'alive of', allAgents.length, 'total');
+
+    // Calculate death statistics by cause
+    console.log('[statistics] Getting deaths...');
+    const allDeaths = deaths.getAll();
+    console.log('[statistics] Deaths processed:', allDeaths.length, 'total');
+    const deathsByCause = {
+      hunger: 0,
+      thirst: 0,
+      tiredness: 0,
+      unknown: 0
+    };
+
+    allDeaths.forEach(death => {
+      if (deathsByCause.hasOwnProperty(death.cause)) {
+        deathsByCause[death.cause]++;
+      } else {
+        deathsByCause.unknown++;
+      }
+    });
+
+    // Calculate average needs across living agents
+    const avgNeeds = {
+      hunger: 0,
+      thirst: 0,
+      tiredness: 0
+    };
+
+    if (aliveAgents.length > 0) {
+      aliveAgents.forEach(agent => {
+        avgNeeds.hunger += agent.hunger || 0;
+        avgNeeds.thirst += agent.thirst || 0;
+        avgNeeds.tiredness += agent.tiredness || 0;
+      });
+
+      avgNeeds.hunger /= aliveAgents.length;
+      avgNeeds.thirst /= aliveAgents.length;
+      avgNeeds.tiredness /= aliveAgents.length;
+    }
+
+    // Get resource counts
+    console.log('[statistics] Getting objects...');
+    // Query the entire world to get all objects
+    const allObjects = objects.queryRect(0, 0, config.width, config.height, null);
+    const foodNodes = allObjects.filter(obj => obj.type === 'food').length;
+    const waterSources = allObjects.filter(obj => obj.type === 'water_source').length;
+    const restSpots = allObjects.filter(obj => obj.type === 'rest_spot').length;
+    console.log('[statistics] Objects processed:', allObjects.length, 'total');
+
+    // Get simulation status
+    console.log('[statistics] Getting simulation status...');
+    const simulationStatus = simulation.getStatus();
+    console.log('[statistics] Simulation status retrieved');
+
+    res.json({
+      world: {
+        width: config.width,
+        height: config.height,
+        seed: config.seed,
+        tickCount: simulationStatus.tickCount,
+        tickMs: simulationStatus.tickMs
+      },
+      agents: {
+        alive: aliveAgents.length,
+        total: allAgents.length,
+        dead: allAgents.length - aliveAgents.length,
+        averageNeeds: avgNeeds
+      },
+      deaths: {
+        total: allDeaths.length,
+        byCause: deathsByCause
+      },
+      resources: {
+        foodNodes,
+        waterSources,
+        restSpots,
+        totalObjects: allObjects.length
+      },
+      timestamp: Date.now()
+    });
+  } catch (error) {
+    console.error('[statistics] Error fetching world statistics:', error);
+    res.status(500).json({ error: 'Failed to fetch world statistics' });
+  }
+});
+
 module.exports = router;

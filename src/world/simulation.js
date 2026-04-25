@@ -92,8 +92,8 @@ function createSimulation(world) {
         else if (agent.thirst >= 1) cause = 'thirst';
         else if (agent.tiredness >= 1) cause = 'tiredness';
 
-        // Record death location
-        deaths.addDeath(id, agent.x, agent.y, tickCount, cause);
+        // Record death
+        deaths.addDeath(id, tickCount, cause);
       }
       agents.removeById(id);
       deathCount++;
