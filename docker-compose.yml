@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  backend:
+    build: .
+    ports:
+      - "4000:4000"
+    environment:
+      - PORT=4000
+      - CORS_ORIGIN=http://localhost:3000
+      - WORLD_SEED=20260420
+      - WORLD_WIDTH=5120
+      - WORLD_HEIGHT=5120
+      - WORLD_CELL_SIZE=1
+      - WORLD_CHUNK_SIZE=128
+      - TERRAIN_MIN_HEIGHT=-10
+      - TERRAIN_MAX_HEIGHT=80
+      - SIM_TICK_MS=200
+      - VISION_CONE_DEG=100
+      - VISION_NEAR_RADIUS=4
+      - MEMORY_DECAY_FLOOR=0.02
+      - MEMORY_CLUSTER_RADIUS=4
+      - MEMORY_CLUSTER_MIN_COUNT=3
+      - MEMORY_CLUSTER_DECAY_MULT=100
+      - HUNGER_DECAY_RATE=0.0003
+      - THIRST_DECAY_RATE=0.0005
+      - TIREDNESS_DECAY_RATE=0.0002
+      - HUNGER_THRESHOLD=0.45
+      - THIRST_THRESHOLD=0.40
+      - TIREDNESS_THRESHOLD=0.50
+      - ACTION_TICKS=8
+      - ACTION_RESTORE_RATE=0.05
+      - FOOD_REGROW_TICKS=500
+      - FOOD_STOCK=3
+      - FOOD_SPREAD_RADIUS=15
+      - FOOD_SPREAD_CHANCE=0.02
+      - FOOD_SPREAD_INTERVAL=200
+      - FOOD_DENSITY_RADIUS=10
+      - FOOD_DENSITY_MAX=4
+    restart: unless-stopped
+    healthcheck:
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
