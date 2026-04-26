@@ -186,12 +186,6 @@ router.post('/chunks', (req, res, next) => {
     const chunksW = Math.floor(W / cs);
     const chunksH = Math.floor(H / cs);
 
-    const wantHeight = requested.includes('height');
-    const wantGround = requested.includes('groundType');
-    const wantWater = requested.includes('waterDepth');
-    const wantCost = requested.includes('moveCost');
-    const wantBlocks = requested.includes('blocksVision');
-
     const out = new Array(items.length);
 
     for (let n = 0; n < items.length; n++) {
@@ -201,38 +195,17 @@ router.post('/chunks', (req, res, next) => {
 
       const baseX = cx * cs;
       const baseY = cy * cs;
-      const N = cs * cs;
 
-      const heightArr = wantHeight ? new Float32Array(N) : null;
-      const groundArr = wantGround ? new Array(N) : null;
-      const waterArr = wantWater ? new Float32Array(N) : null;
-      const costArr = wantCost ? new Float32Array(N) : null;
-      const blocksArr = wantBlocks ? new Uint8Array(N) : null;
+      // Use optimized batch generation
+      const chunkLayers = terrain.generateChunkLayers(baseX, baseY, cs, requested);
 
-      for (let j = 0; j < cs; j++) {
-        const wy = baseY + j;
-        for (let i = 0; i < cs; i++) {
-          const wx = baseX + i;
-          const idx = j * cs + i;
-          if (wantGround || wantWater || wantCost || wantBlocks) {
-            const cell = terrain.cellAt(wx, wy);
-            if (heightArr) heightArr[idx] = cell.height;
-            if (groundArr) groundArr[idx] = cell.groundType;
-            if (waterArr) waterArr[idx] = cell.waterDepth;
-            if (costArr) costArr[idx] = cell.baseMoveCost === Infinity ? -1 : cell.baseMoveCost;
-            if (blocksArr) blocksArr[idx] = cell.blocksVision ? 1 : 0;
-          } else if (heightArr) {
-            heightArr[idx] = terrain.heightAt(wx, wy);
-          }
-        }
-      }
-
+      // Convert typed arrays to regular arrays for JSON serialization
       const layers = {};
-      if (heightArr) layers.height = Array.from(heightArr);
-      if (groundArr) layers.groundType = groundArr;
-      if (waterArr) layers.waterDepth = Array.from(waterArr);
-      if (costArr) layers.moveCost = Array.from(costArr);
-      if (blocksArr) layers.blocksVision = Array.from(blocksArr);
+      if (chunkLayers.height) layers.height = Array.from(chunkLayers.height);
+      if (chunkLayers.groundType) layers.groundType = chunkLayers.groundType;
+      if (chunkLayers.waterDepth) layers.waterDepth = Array.from(chunkLayers.waterDepth);
+      if (chunkLayers.moveCost) layers.moveCost = Array.from(chunkLayers.moveCost);
+      if (chunkLayers.blocksVision) layers.blocksVision = Array.from(chunkLayers.blocksVision);
 
       out[n] = { cx, cy, size: cs, layers };
     }

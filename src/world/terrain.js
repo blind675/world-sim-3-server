@@ -147,6 +147,54 @@ function createTerrain(config) {
     };
   }
 
+  // Batch generate all requested layers for a chunk in a single pass
+  function generateChunkLayers(baseX, baseY, chunkSize, requestedLayers) {
+    const N = chunkSize * chunkSize;
+    const layers = {};
+
+    // Pre-allocate arrays for requested layers
+    if (requestedLayers.includes('height')) {
+      layers.height = new Float32Array(N);
+    }
+    if (requestedLayers.includes('groundType')) {
+      layers.groundType = new Array(N);
+    }
+    if (requestedLayers.includes('waterDepth')) {
+      layers.waterDepth = new Float32Array(N);
+    }
+    if (requestedLayers.includes('moveCost')) {
+      layers.moveCost = new Float32Array(N);
+    }
+    if (requestedLayers.includes('blocksVision')) {
+      layers.blocksVision = new Uint8Array(N);
+    }
+
+    // Generate all layers in a single pass
+    for (let j = 0; j < chunkSize; j++) {
+      const wy = baseY + j;
+      for (let i = 0; i < chunkSize; i++) {
+        const wx = baseX + i;
+        const idx = j * chunkSize + i;
+
+        // Calculate values once per cell
+        const h = heightAt(wx, wy);
+        const g = groundTypeAt(wx, wy, h);
+        const waterDepth = waterDepthAt(wx, wy, h);
+        const moveCost = MOVE_COST[g];
+        const blocksVision = VISION_BLOCK[g];
+
+        // Store in requested arrays
+        if (layers.height) layers.height[idx] = h;
+        if (layers.groundType) layers.groundType[idx] = g;
+        if (layers.waterDepth) layers.waterDepth[idx] = waterDepth;
+        if (layers.moveCost) layers.moveCost[idx] = moveCost === Infinity ? -1 : moveCost;
+        if (layers.blocksVision) layers.blocksVision[idx] = blocksVision ? 1 : 0;
+      }
+    }
+
+    return layers;
+  }
+
   // Calculate movement cost including altitude penalties/bonuses
   function moveCostWithAltitude(fromX, fromY, toX, toY, altitudeConfig) {
     const fromCell = cellAt(fromX, fromY);
@@ -171,15 +219,16 @@ function createTerrain(config) {
     return baseCost * multiplier;
   }
 
-  return {
+  return Object.freeze({
     heightAt,
     slopeAt,
     groundTypeAt,
     waterDepthAt,
     cellAt,
+    generateChunkLayers,
     moveCostWithAltitude,
     constants: { MOVE_COST, VISION_BLOCK },
-  };
+  });
 }
 
 module.exports = { createTerrain };

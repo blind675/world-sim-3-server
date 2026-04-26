@@ -23,7 +23,7 @@ function buildConfig() {
     width: int('WORLD_WIDTH', 5120),
     height: int('WORLD_HEIGHT', 5120),
     cellSize: num('WORLD_CELL_SIZE', 1),
-    chunkSize: int('WORLD_CHUNK_SIZE', 128),
+    chunkSize: int('WORLD_CHUNK_SIZE', 64),
     wrapMode: WRAP_MODE,
     terrain: {
       minHeight: num('TERRAIN_MIN_HEIGHT', -10),
