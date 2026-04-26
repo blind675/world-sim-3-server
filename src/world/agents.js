@@ -200,6 +200,8 @@ function createAgentStore(config, terrain, chunkIndex) {
       pathLength: a.path.length,
       pathIndex: a.pathIndex,
       pathRemaining: Math.max(0, a.path.length - a.pathIndex),
+      // Full path for frontend animation
+      path: a.path.slice(a.pathIndex), // Include remaining path from current position
       // Movement data for interpolation
       movementStartPos: a.movementStartPos,
       targetPos: a.targetPos,
