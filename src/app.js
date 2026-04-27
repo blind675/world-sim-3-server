@@ -2,6 +2,7 @@
 
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
 
 const worldRoutes = require('./routes/world');
 const entitiesRoutes = require('./routes/entities');
@@ -13,6 +14,14 @@ function createApp() {
 
   const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000';
   app.use(cors({ origin: corsOrigin === '*' ? true : corsOrigin.split(',') }));
+
+  // gzip/deflate large JSON responses. /chunks payloads compress ~10-20x.
+  // threshold:1024 skips tiny responses where compression cost > saving.
+  app.use(compression({
+    threshold: 1024,
+    level: 6,
+  }));
+
   app.use(express.json({ limit: '1mb' }));
 
   // Simple request logger for development.
