@@ -5,6 +5,7 @@
 // is mapped onto two circles in 4D, giving exact periodicity on both axes.
 
 const { createRng } = require('../utils/prng');
+const { getTrigLookup } = require('./trigLookup');
 
 function buildPermutation(seed) {
   const rng = createRng(seed);
@@ -21,14 +22,14 @@ function buildPermutation(seed) {
 
 // 32 evenly distributed gradients on the 4D unit lattice (+/- 1 combos with a zero).
 const GRAD4 = new Int8Array([
-  0, 1, 1, 1,   0, 1, 1,-1,   0, 1,-1, 1,   0, 1,-1,-1,
-  0,-1, 1, 1,   0,-1, 1,-1,   0,-1,-1, 1,   0,-1,-1,-1,
-  1, 0, 1, 1,   1, 0, 1,-1,   1, 0,-1, 1,   1, 0,-1,-1,
- -1, 0, 1, 1,  -1, 0, 1,-1,  -1, 0,-1, 1,  -1, 0,-1,-1,
-  1, 1, 0, 1,   1, 1, 0,-1,   1,-1, 0, 1,   1,-1, 0,-1,
- -1, 1, 0, 1,  -1, 1, 0,-1,  -1,-1, 0, 1,  -1,-1, 0,-1,
-  1, 1, 1, 0,   1, 1,-1, 0,   1,-1, 1, 0,   1,-1,-1, 0,
- -1, 1, 1, 0,  -1, 1,-1, 0,  -1,-1, 1, 0,  -1,-1,-1, 0,
+  0, 1, 1, 1, 0, 1, 1, -1, 0, 1, -1, 1, 0, 1, -1, -1,
+  0, -1, 1, 1, 0, -1, 1, -1, 0, -1, -1, 1, 0, -1, -1, -1,
+  1, 0, 1, 1, 1, 0, 1, -1, 1, 0, -1, 1, 1, 0, -1, -1,
+  -1, 0, 1, 1, -1, 0, 1, -1, -1, 0, -1, 1, -1, 0, -1, -1,
+  1, 1, 0, 1, 1, 1, 0, -1, 1, -1, 0, 1, 1, -1, 0, -1,
+  -1, 1, 0, 1, -1, 1, 0, -1, -1, -1, 0, 1, -1, -1, 0, -1,
+  1, 1, 1, 0, 1, 1, -1, 0, 1, -1, 1, 0, 1, -1, -1, 0,
+  -1, 1, 1, 0, -1, 1, -1, 0, -1, -1, 1, 0, -1, -1, -1, 0,
 ]);
 
 function fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
@@ -43,6 +44,7 @@ function grad4(perm, ix, iy, iz, iw, dx, dy, dz, dw) {
 
 function createPerlin4D(seed) {
   const perm = buildPermutation(seed);
+  const trig = getTrigLookup();
 
   function noise(x, y, z, w) {
     const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z), wi = Math.floor(w);
@@ -53,21 +55,21 @@ function createPerlin4D(seed) {
     const ix1 = (xi + 1) & 255, iy1 = (yi + 1) & 255, iz1 = (zi + 1) & 255, iw1 = (wi + 1) & 255;
 
     // 16 corner contributions
-    const n0000 = grad4(perm, ix,  iy,  iz,  iw,  xf,     yf,     zf,     wf);
-    const n1000 = grad4(perm, ix1, iy,  iz,  iw,  xf - 1, yf,     zf,     wf);
-    const n0100 = grad4(perm, ix,  iy1, iz,  iw,  xf,     yf - 1, zf,     wf);
-    const n1100 = grad4(perm, ix1, iy1, iz,  iw,  xf - 1, yf - 1, zf,     wf);
-    const n0010 = grad4(perm, ix,  iy,  iz1, iw,  xf,     yf,     zf - 1, wf);
-    const n1010 = grad4(perm, ix1, iy,  iz1, iw,  xf - 1, yf,     zf - 1, wf);
-    const n0110 = grad4(perm, ix,  iy1, iz1, iw,  xf,     yf - 1, zf - 1, wf);
-    const n1110 = grad4(perm, ix1, iy1, iz1, iw,  xf - 1, yf - 1, zf - 1, wf);
-    const n0001 = grad4(perm, ix,  iy,  iz,  iw1, xf,     yf,     zf,     wf - 1);
-    const n1001 = grad4(perm, ix1, iy,  iz,  iw1, xf - 1, yf,     zf,     wf - 1);
-    const n0101 = grad4(perm, ix,  iy1, iz,  iw1, xf,     yf - 1, zf,     wf - 1);
-    const n1101 = grad4(perm, ix1, iy1, iz,  iw1, xf - 1, yf - 1, zf,     wf - 1);
-    const n0011 = grad4(perm, ix,  iy,  iz1, iw1, xf,     yf,     zf - 1, wf - 1);
-    const n1011 = grad4(perm, ix1, iy,  iz1, iw1, xf - 1, yf,     zf - 1, wf - 1);
-    const n0111 = grad4(perm, ix,  iy1, iz1, iw1, xf,     yf - 1, zf - 1, wf - 1);
+    const n0000 = grad4(perm, ix, iy, iz, iw, xf, yf, zf, wf);
+    const n1000 = grad4(perm, ix1, iy, iz, iw, xf - 1, yf, zf, wf);
+    const n0100 = grad4(perm, ix, iy1, iz, iw, xf, yf - 1, zf, wf);
+    const n1100 = grad4(perm, ix1, iy1, iz, iw, xf - 1, yf - 1, zf, wf);
+    const n0010 = grad4(perm, ix, iy, iz1, iw, xf, yf, zf - 1, wf);
+    const n1010 = grad4(perm, ix1, iy, iz1, iw, xf - 1, yf, zf - 1, wf);
+    const n0110 = grad4(perm, ix, iy1, iz1, iw, xf, yf - 1, zf - 1, wf);
+    const n1110 = grad4(perm, ix1, iy1, iz1, iw, xf - 1, yf - 1, zf - 1, wf);
+    const n0001 = grad4(perm, ix, iy, iz, iw1, xf, yf, zf, wf - 1);
+    const n1001 = grad4(perm, ix1, iy, iz, iw1, xf - 1, yf, zf, wf - 1);
+    const n0101 = grad4(perm, ix, iy1, iz, iw1, xf, yf - 1, zf, wf - 1);
+    const n1101 = grad4(perm, ix1, iy1, iz, iw1, xf - 1, yf - 1, zf, wf - 1);
+    const n0011 = grad4(perm, ix, iy, iz1, iw1, xf, yf, zf - 1, wf - 1);
+    const n1011 = grad4(perm, ix1, iy, iz1, iw1, xf - 1, yf, zf - 1, wf - 1);
+    const n0111 = grad4(perm, ix, iy1, iz1, iw1, xf, yf - 1, zf - 1, wf - 1);
     const n1111 = grad4(perm, ix1, iy1, iz1, iw1, xf - 1, yf - 1, zf - 1, wf - 1);
 
     // Trilinear + w blend

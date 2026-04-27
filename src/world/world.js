@@ -16,6 +16,12 @@ function getWorld() {
   if (singleton) return singleton;
   const config = buildConfig();
   const terrain = createTerrain(config);
+
+  // Pre-generate all world chunks for instant /chunks endpoint response
+  console.log('[World] Initializing world with terrain pre-generation...');
+  const preGenStats = terrain.preGenerateWorld();
+  console.log('[World] Terrain pre-generation completed');
+
   const chunkIndex = createChunkIndex(config);
   const objects = createObjectStore(config, terrain, chunkIndex);
   const agents = createAgentStore(config, terrain, chunkIndex);

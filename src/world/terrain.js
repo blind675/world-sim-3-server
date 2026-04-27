@@ -4,6 +4,8 @@
 // Height sampled on demand; no full 5120x5120 heightmap kept in memory.
 
 const { createPerlin4D } = require('./perlin');
+const { getTrigLookup } = require('./trigLookup');
+const { createTerrainCache, getTerrainCache } = require('./terrainCache');
 
 const TWO_PI = Math.PI * 2;
 
@@ -14,8 +16,14 @@ function smoothstep(e0, e1, x) {
 }
 
 function createTerrain(config) {
-  const { width, height, seed, terrain } = config;
+  const { width, height, seed, terrain, chunkSize } = config;
   const { minHeight, maxHeight, seaLevel } = terrain;
+
+  // Initialize trigonometric lookup tables
+  const trig = getTrigLookup();
+
+  // Initialize terrain cache
+  const cache = createTerrainCache(config);
 
   // Independent noise layers for octaves and derivations.
   const base = createPerlin4D(seed ^ 0x9e3779b1);
@@ -43,14 +51,15 @@ function createTerrain(config) {
 
   // Sample one octave of seamless noise at 2D position (x,y) with frequency fx,fy
   // (cycles per world). Map x -> (cos(kx*x*fx), sin(kx*x*fx)) and similarly for y.
+  // Uses pre-computed trigonometric lookup tables for performance.
   function seamless(noiseFn, x, y, fx, fy) {
     const ax = kx * x * fx;
     const ay = ky * y * fy;
     return noiseFn(
-      Math.cos(ax),
-      Math.sin(ax),
-      Math.cos(ay),
-      Math.sin(ay),
+      trig.cos(ax),
+      trig.sin(ax),
+      trig.cos(ay),
+      trig.sin(ay),
     );
   }
 
@@ -165,7 +174,25 @@ function createTerrain(config) {
   }
 
   // Batch generate all requested layers for a chunk in a single pass
+  // Uses cache for instant retrieval when available
   function generateChunkLayers(baseX, baseY, chunkSize, requestedLayers) {
+    const cx = Math.floor(baseX / chunkSize);
+    const cy = Math.floor(baseY / chunkSize);
+
+    // Try to get from cache first
+    let cached = cache.getChunk(cx, cy);
+    if (cached) {
+      // Return only requested layers from cached data
+      const result = {};
+      if (requestedLayers.includes('height') && cached.height) result.height = cached.height;
+      if (requestedLayers.includes('groundType') && cached.groundType) result.groundType = cached.groundType;
+      if (requestedLayers.includes('waterDepth') && cached.waterDepth) result.waterDepth = cached.waterDepth;
+      if (requestedLayers.includes('moveCost') && cached.moveCost) result.moveCost = cached.moveCost;
+      if (requestedLayers.includes('blocksVision') && cached.blocksVision) result.blocksVision = cached.blocksVision;
+      return result;
+    }
+
+    // Generate new chunk data
     const N = chunkSize * chunkSize;
     const layers = {};
 
@@ -209,6 +236,16 @@ function createTerrain(config) {
       }
     }
 
+    // Cache the complete chunk data for future requests
+    const completeChunk = {
+      height: new Float32Array(layers.height),
+      groundType: [...layers.groundType],
+      waterDepth: new Float32Array(layers.waterDepth),
+      moveCost: new Float32Array(layers.moveCost),
+      blocksVision: new Uint8Array(layers.blocksVision)
+    };
+    cache.setChunk(cx, cy, completeChunk);
+
     return layers;
   }
 
@@ -236,6 +273,47 @@ function createTerrain(config) {
     return baseCost * multiplier;
   }
 
+  // Pre-generate all world chunks at startup
+  function preGenerateWorld() {
+    console.log(`[Terrain] Starting world pre-generation...`);
+    const startTime = Date.now();
+
+    const chunksW = Math.floor(width / chunkSize);
+    const chunksH = Math.floor(height / chunkSize);
+    const totalChunks = chunksW * chunksH;
+
+    console.log(`[Terrain] World size: ${width}x${height}, Chunk size: ${chunkSize}x${chunkSize}`);
+    console.log(`[Terrain] Generating ${totalChunks} chunks...`);
+
+    // Generate all chunks
+    for (let cy = 0; cy < chunksH; cy++) {
+      for (let cx = 0; cx < chunksW; cx++) {
+        const baseX = cx * chunkSize;
+        const baseY = cy * chunkSize;
+
+        // Generate all layers for this chunk
+        generateChunkLayers(baseX, baseY, chunkSize, ['height', 'groundType', 'waterDepth', 'moveCost', 'blocksVision']);
+
+        // Progress reporting
+        if ((cx + cy * chunksW) % 100 === 0 || (cx === chunksW - 1 && cy === chunksH - 1)) {
+          const progress = ((cx + cy * chunksW + 1) / totalChunks * 100).toFixed(1);
+          process.stdout.write(`\r[Terrain] Progress: ${progress}% (${cx + cy * chunksW + 1}/${totalChunks})`);
+        }
+      }
+    }
+
+    const endTime = Date.now();
+    const duration = (endTime - startTime) / 1000;
+    console.log(`\n[Terrain] World pre-generation completed in ${duration.toFixed(2)} seconds`);
+
+    const stats = cache.getStats();
+    const memory = cache.getMemoryUsage();
+    console.log(`[Terrain] Cache stats: ${stats.generatedChunks}/${stats.totalChunks} chunks`);
+    console.log(`[Terrain] Memory usage: ${memory.totalMB.toFixed(2)} MB`);
+
+    return stats;
+  }
+
   return Object.freeze({
     heightAt,
     slopeAt,
@@ -244,6 +322,9 @@ function createTerrain(config) {
     cellAt,
     generateChunkLayers,
     moveCostWithAltitude,
+    preGenerateWorld,
+    getCacheStats: () => cache.getStats(),
+    getCacheMemory: () => cache.getMemoryUsage(),
     constants: { MOVE_COST, VISION_BLOCK },
   });
 }
