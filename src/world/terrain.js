@@ -28,14 +28,14 @@ function createTerrain(config) {
   // (Non-integer cycle counts cause a visible seam at x=0 and y=0.)
   //
   // With width=5120 the feature sizes are approximately:
-  //   4  cycles -> 1280 m features (broad hills/basins)
-  //   10 cycles ->  512 m features (local ridges)
-  //   32 cycles ->  160 m features (surface roughness)
-  //   6  cycles (ridge) -> ~853 m features
-  const fLarge = 4;
-  const fMid = 10;
-  const fFine = 32;
-  const fRidge = 6;
+  //   5  cycles -> 1280 m features (broad hills/basins)
+  //   8  cycles ->  640 m features (local ridges) - reduced from 10
+  //   16 cycles ->  320 m features (surface roughness) - reduced from 32
+  //   5  cycles (ridge) -> 1024 m features - reduced from 6
+  const fLarge = 5;
+  const fMid = 8;
+  const fFine = 16;
+  const fRidge = 5;
 
   // Precomputed 2pi/size
   const kx = TWO_PI / width;
@@ -65,8 +65,9 @@ function createTerrain(config) {
 
     // Octaves weighted so large shapes dominate. Keep total amplitude modest so
     // per-cell slopes stay gentle on a 1m-cell world. Perlin4D peaks near ±0.7.
-    const sum = n1 * 0.82 + n2 * 0.22 + n3 * 0.06;
-    const ridged = (0.5 - Math.abs(nr)) * 0.18;
+    // Reduced higher frequency contributions for smoother terrain.
+    const sum = n1 * 0.88 + n2 * 0.10 + n3 * 0.02;
+    const ridged = (0.5 - Math.abs(nr)) * 0.10;
     const combined = sum + ridged;
 
     // Centered distribution with small downward bias so ~20% is below sea level.
@@ -87,30 +88,45 @@ function createTerrain(config) {
     return Math.sqrt(dx * dx + dy * dy) / 2;
   }
 
-  // Ground classification using height + slope bands.
-  // Kept intentionally simple for Phase 1; richer biomes come later.
+  // Ground classification using clear altitude bands with slope as secondary modifier.
+  // Altitude determines the base biome, slope can override with rock/tall_grass.
   function groundTypeAt(x, y, h) {
     const height = (h === undefined) ? heightAt(x, y) : h;
+    const s = slopeAt(x, y);
+
+    // Water zones (altitude-based)
     if (height < seaLevel - 2) return 'deep_water';
     if (height < seaLevel) return 'shallow_water';
     if (height < seaLevel + 0.8) return 'mud';
 
-    // Slope thresholds calibrated to the realised slope distribution
-    // (p50 ≈ 0.2, p90 ≈ 0.45, p99 ≈ 0.6 m/cell).
-    const s = slopeAt(x, y);
-    if (s > 0.55) return 'rock';
-    if (height > maxHeight * 0.85 && s > 0.35) return 'rock';
-    if (s > 0.35) return 'tall_grass';
-    if (height > seaLevel + 35) return 'forest_floor';
-    if (height > seaLevel + 10) {
-      return s > 0.18 ? 'tall_grass' : 'forest_floor';
+    // Really high altitude zones (above 90% of max height)
+    if (height > maxHeight * 0.90) {
+      return 'rock';                         // Pure rock zones
     }
-    if (s > 0.18) return 'tall_grass';
-    return 'ground';
+
+    // High altitude zones (above 75% of max height ≈ 60m+)
+    if (height > maxHeight * 0.75) {
+      if (s > 0.4) return 'rock';           // Steep slopes become rock
+      return 'short_grass';                  // High meadows (short grass due to strong winds)
+    }
+
+    // Mid altitude zones (sea level + 10m to 60m)
+    if (height > seaLevel + 10) {
+      if (s > 0.6) return 'rock';           // Steep slopes become rock
+      if (s > 0.30) return 'tall_grass';    // Moderate slopes become tall grass
+      return 'forest_floor';                 // Forest areas on gentle terrain
+    }
+
+    // Low altitude zones (sea level + 0.8m to 10m)
+    if (s > 0.8) return 'rock';             // Extreme slopes become rock
+    if (s > 0.2) return 'tall_grass';      // Moderate slopes become tall grass
+    if (s > 0.15) return 'short_grass';    // Gentle slopes become short grass
+    return 'ground';                        // Flat lowland terrain
   }
 
   const MOVE_COST = Object.freeze({
     ground: 1.0,
+    short_grass: 1.1,
     tall_grass: 1.3,
     forest_floor: 1.2,
     mud: 1.8,
@@ -121,6 +137,7 @@ function createTerrain(config) {
 
   const VISION_BLOCK = Object.freeze({
     ground: false,
+    short_grass: false,
     tall_grass: false,
     forest_floor: false,
     mud: false,

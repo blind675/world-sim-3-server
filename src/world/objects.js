@@ -14,11 +14,11 @@ const { wrappedDistance } = require('../utils/wrap');
 // Candidate counts per 128x128 chunk. We sample more candidates than Phase 2a
 // because each one also has to pass a low-frequency density field (forest /
 // outcrop mask), which rejects most candidates outside clusters.
-const TREE_CANDIDATES_PER_CHUNK = 360;
-const ROCK_CANDIDATES_PER_CHUNK = 140;
-const FOOD_CANDIDATES_PER_CHUNK = 60;
-const WATER_CANDIDATES_PER_CHUNK = 50;
-const REST_CANDIDATES_PER_CHUNK = 25;
+const TREE_CANDIDATES_PER_CHUNK = 150;
+const ROCK_CANDIDATES_PER_CHUNK = 40;
+const FOOD_CANDIDATES_PER_CHUNK = 40;
+const WATER_CANDIDATES_PER_CHUNK = 60;
+const REST_CANDIDATES_PER_CHUNK = 30;
 
 // Feature sizes for clustering (cycles per world). With width=5120:
 //   8  cycles -> ~640 m forest blobs (big woodlands)
@@ -38,17 +38,59 @@ const FOOD_GROUND = new Set(['ground', 'forest_floor']);
 // Rest spots: walkable vegetated ground.
 const REST_GROUND = new Set(['ground', 'forest_floor']);
 
-function acceptTree(cell) {
-  return cell.height > 2 && TREE_GROUND.has(cell.groundType);
-}
-function acceptRock(cell) {
-  if (cell.groundType === 'rock') return true;
-  if (cell.height > 25) return true;
+function acceptTree(cell, config) {
+  // Calculate height percentage (0% = minHeight, 100% = maxHeight)
+  const heightRange = config.terrain.maxHeight - config.terrain.minHeight;
+  const heightPercent = (cell.height - config.terrain.minHeight) / heightRange;
+
+  // Trees don't spawn below 5% of world height (was < 2m, now ~4.5m in default config)
+  if (heightPercent < 0.05) return false;
+
+  // Very high probability on forest_floor (prime forest habitat)
+  if (cell.groundType === 'forest_floor') return Math.random() < 0.9;
+  // High probability on tall_grass (good for trees)
+  if (cell.groundType === 'tall_grass') return Math.random() < 0.4;
+  // Moderate probability on short_grass (some trees in high meadows)
+  if (cell.groundType === 'short_grass') return Math.random() < 0.15;
+  // Low probability on ground (scattered trees)
+  if (cell.groundType === 'ground') return Math.random() < 0.05;
+
   return false;
 }
-function acceptFood(cell) {
-  return cell.height > 1 && FOOD_GROUND.has(cell.groundType);
+function acceptRock(cell, config) {
+  // Calculate height percentage (0% = minHeight, 100% = maxHeight)
+  const heightRange = config.terrain.maxHeight - config.terrain.minHeight;
+  const heightPercent = (cell.height - config.terrain.minHeight) / heightRange;
+
+  // Always accept on rock ground type
+  if (cell.groundType === 'rock') return true;
+  // High probability on short_grass (high altitude, rocky areas)
+  if (cell.groundType === 'short_grass') return Math.random() < 0.5;
+  // Moderate probability on tall_grass (sloped areas)
+  if (cell.groundType === 'tall_grass') return Math.random() < 0.2;
+  // Low probability on terrain above 35% of world height (was > 25m, now ~32.5m in default config)
+  if (heightPercent > 0.35) return Math.random() < 0.15;
+  return false;
 }
+
+function acceptFood(cell, config) {
+  // Calculate height percentage (0% = minHeight, 100% = maxHeight)
+  const heightRange = config.terrain.maxHeight - config.terrain.minHeight;
+  const heightPercent = (cell.height - config.terrain.minHeight) / heightRange;
+
+  // Food doesn't spawn below 2% of world height (was < 1m, now ~1.8m in default config)
+  if (heightPercent < 0.02) return false;
+
+  // Very high probability on tall_grass (berry bushes in grasslands)
+  if (cell.groundType === 'tall_grass') return Math.random() < 0.8;
+  // High probability on forest_floor (berries in forest understory)
+  if (cell.groundType === 'forest_floor') return Math.random() < 0.5;
+  // Moderate probability on ground (some berries in open terrain)
+  if (cell.groundType === 'ground') return Math.random() < 0.2;
+
+  return false;
+}
+
 // Water sources sit on the water's edge — shallow water or mud right at
 // the shoreline. Deeper cells are excluded so they read as accessible
 // drinking points rather than lake interior.
@@ -185,7 +227,7 @@ function createObjectStore(config, terrain, chunkIndex) {
       const d = forestDensity(x, y);
       if (d <= 0 || gate > d) continue;
       const cell = terrain.cellAt(x, y);
-      if (!acceptTree(cell)) continue;
+      if (!acceptTree(cell, config)) continue;
       const id = `t-${cx}-${cy}-${i}`;
       objects.push({ id, type: 'tree', x, y });
     }
@@ -201,7 +243,7 @@ function createObjectStore(config, terrain, chunkIndex) {
       const d = outcropDensity(x, y);
       if (d <= 0 || gate > d) continue;
       const cell = terrain.cellAt(x, y);
-      if (!acceptRock(cell)) continue;
+      if (!acceptRock(cell, config)) continue;
       const id = `r-${cx}-${cy}-${i}`;
       objects.push({ id, type: 'rock', x, y });
     }
@@ -219,7 +261,7 @@ function createObjectStore(config, terrain, chunkIndex) {
       const d = berryDensity(x, y);
       if (d <= 0 || gate > d) continue;
       const cell = terrain.cellAt(x, y);
-      if (!acceptFood(cell)) continue;
+      if (!acceptFood(cell, config)) continue;
       // Apply altitude bias
       const altBias = altitudeBias(cell.height, altitude.foodAltitudeBiasStrength, altitude.preferredAltitudeMax);
       if (rngF() > altBias) continue;
@@ -375,7 +417,7 @@ function createObjectStore(config, terrain, chunkIndex) {
     if (nx === srcX && ny === srcY) return null;
 
     const cell = terrain.cellAt(nx, ny);
-    if (!acceptFood(cell)) return null;
+    if (!acceptFood(cell, config)) return null;
 
     // Density cap — avoid piling new nodes onto crowded areas.
     if (countFoodWithinRadius(nx, ny, survival.foodDensityRadius, tick) >= survival.foodDensityMax) {
