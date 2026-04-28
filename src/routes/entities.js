@@ -70,7 +70,8 @@ router.get('/in-view', (req, res, next) => {
     // Agents (filtered via chunk index + wrapped rect containment).
     let agentOut = [];
     if (!typesSet || typesSet.has('agent')) {
-      const { agents, chunkIndex, config } = getWorld();
+      const { agents, chunkIndex, config, simulation } = getWorld();
+      const currentTick = simulation.getStatus().tickCount;
       const chunks = chunkIndex.chunksInRect(x, y, w, h);
       const W = config.width;
       const H = config.height;
@@ -85,11 +86,7 @@ router.get('/in-view', (req, res, next) => {
           let dy = a.y - y; dy = ((dy % H) + H) % H;
           if (dx < w && dy < h) {
             seen.add(id);
-            agentOut.push({
-              id: a.id, type: 'agent',
-              x: a.x, y: a.y,
-              facing: a.facing, state: a.state,
-            });
+            agentOut.push(agents.publicView(a, currentTick));
           }
         }
       }

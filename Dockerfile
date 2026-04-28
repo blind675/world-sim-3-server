@@ -1,14 +1,17 @@
 # Use Node.js 18 LTS as base image
 FROM node:18-alpine
 
+# Set NODE_ENV for Express internal optimizations and reduced error verbosity.
+ENV NODE_ENV=production
+
 # Set working directory
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install dependencies (omits devDependencies thanks to NODE_ENV=production).
+RUN npm ci --omit=dev
 
 # Copy source code
 COPY . .
