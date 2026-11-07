@@ -2,6 +2,8 @@
 
 Node.js + Express backend for the FlatWorld life simulation. Provides authoritative world state, simulation engine, and REST API.
 
+This is one of two repositories for the project. The [frontend repository](https://github.com/blind675/world-sim-3-client) contains the Next.js viewer. Shared project context is in [Project Overview](docs/PROJECT_OVERVIEW.md), [Product Requirements](docs/PRODUCT_REQUIREMENTS.md), and the [Build Checklist](docs/BUILD_CHECKLIST.md). The requirements and checklist are historical planning documents; code and tests describe current behavior.
+
 ## Quick Start
 
 ### Docker (Recommended)
@@ -57,6 +59,8 @@ All configuration via environment variables. See `.env.example` for complete lis
 
 ## Docker Deployment
 
+See [Docker Deployment](docs/DOCKER_DEPLOYMENT.md) for the current local container workflow and cloud deployment blockers.
+
 ### Building
 ```bash
 docker build -t life-sim-backend .
@@ -71,7 +75,7 @@ docker-compose up -d
 - Use `NODE_ENV=production`
 - Increase `SIM_TICK_MS` for production (1000ms recommended)
 - Set memory limits (512M recommended)
-- Enable health checks
+- Fix the Dockerfile health-check path before deploying (see the deployment guide)
 
 ## API Endpoints
 
@@ -118,7 +122,7 @@ curl "http://localhost:4000/api/world/viewport?x=0&y=0&w=32&h=32&layers=height,g
 ## Monitoring
 
 ### Health Checks
-Docker includes built-in health checks:
+The Dockerfile health check needs the route correction described above. After fixing it, inspect status with:
 ```bash
 docker-compose ps  # Show health status
 ```
