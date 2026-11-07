@@ -24,6 +24,7 @@ function buildConfig() {
     height: int('WORLD_HEIGHT', 5120),
     cellSize: num('WORLD_CELL_SIZE', 1),
     chunkSize: int('WORLD_CHUNK_SIZE', 64),
+    terrainCacheMaxChunks: Math.max(1, int('TERRAIN_CACHE_MAX_CHUNKS', 256)),
     wrapMode: WRAP_MODE,
     terrain: {
       minHeight: num('TERRAIN_MIN_HEIGHT', -10),

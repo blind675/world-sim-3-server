@@ -104,6 +104,7 @@ function findPath(world, start, goal, opts = {}) {
   const H = config.height;
   const deepWaterThreshold = config.agents.deepWaterThreshold;
   const altitudeConfig = config.altitude;
+  const minStepCost = Math.min(1, altitudeConfig.downhillBonusMultiplier);
   const maxNodes = opts.maxNodes || 200000;
 
   const sx = wrap(start.x | 0, W);
@@ -126,7 +127,11 @@ function findPath(world, start, goal, opts = {}) {
   gScore.set(startKey, 0);
 
   const open = createHeap();
-  open.push({ x: sx, y: sy, key: startKey, f: wrappedManhattan(sx, sy, gx, gy, W, H) });
+  open.push({
+    x: sx, y: sy, key: startKey,
+    cell: terrain.cellAt(sx, sy),
+    f: minStepCost * wrappedManhattan(sx, sy, gx, gy, W, H),
+  });
 
   let expanded = 0;
   while (open.size() > 0) {
@@ -160,14 +165,14 @@ function findPath(world, start, goal, opts = {}) {
       const occupied = isAgentAt(nx, ny, agents, chunkIndex, opts.excludeAgentId);
       if (isBlocked(ncell, deepWaterThreshold, occupied)) continue;
       // Use altitude-aware movement cost
-      const moveCost = terrain.moveCostWithAltitude(cur.x, cur.y, nx, ny, altitudeConfig);
+      const moveCost = terrain.moveCostWithAltitude(cur.cell, ncell, altitudeConfig);
       const tentative = curG + moveCost;
       const prevG = gScore.get(nk);
       if (prevG !== undefined && tentative >= prevG) continue;
       gScore.set(nk, tentative);
       cameFrom.set(nk, { key: cur.key, x: cur.x, y: cur.y });
-      const f = tentative + wrappedManhattan(nx, ny, gx, gy, W, H);
-      open.push({ x: nx, y: ny, key: nk, f });
+      const f = tentative + minStepCost * wrappedManhattan(nx, ny, gx, gy, W, H);
+      open.push({ x: nx, y: ny, key: nk, cell: ncell, f });
     }
   }
   return null;

@@ -42,7 +42,8 @@ All configuration via environment variables. See `.env.example` for complete lis
 - `PORT=4000` - Server port
 - `WORLD_WIDTH=5120` - World width in meters
 - `WORLD_HEIGHT=5120` - World height in meters
-- `SIM_TICK_MS=200` - Simulation tick interval
+- `TERRAIN_CACHE_MAX_CHUNKS=256` - Maximum terrain chunks retained in memory
+- `SIM_TICK_MS=10000` - Default simulation tick interval
 
 ### Perception (Milestone 4)
 - `VISION_CONE_DEG=100` - Vision cone aperture
@@ -81,7 +82,9 @@ docker-compose up -d
 ### World Data
 - `GET /api/world/meta` - World metadata
 - `GET /api/world/viewport` - Terrain viewport
+- `POST /api/world/chunks` - Batch terrain chunks, generated on demand
 - `GET /api/world/cell` - Single cell data
+- `GET /api/world/statistics` - Agent, death, and generated-area resource statistics
 
 ### Entities
 - `GET /api/entities/in-view` - Objects in viewport
@@ -91,13 +94,14 @@ docker-compose up -d
 
 ### Simulation
 - `POST /api/sim/step` - Manual simulation step
-- `GET /api/deaths` - Death records
 
 ## Development
 
 ### Scripts
 - `npm run dev` - Development server with nodemon
 - `npm start` - Production server
+- `npm test` - World generation regression tests
+- `npm run bench` - Small terrain chunk benchmark
 
 ### Testing
 ```bash

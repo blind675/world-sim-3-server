@@ -1,102 +1,68 @@
 'use strict';
 
-// Terrain chunk caching system for world pre-generation
-// Stores all terrain chunks in memory for instant access
-
+// A bounded cache for terrain chunks requested by the viewer. Map insertion
+// order gives us a small LRU without another index or a full-world heightmap.
 class TerrainCache {
   constructor(config) {
-    this.config = config;
-    this.chunkSize = config.chunkSize;
-    this.chunksW = Math.floor(config.width / config.chunkSize);
-    this.chunksH = Math.floor(config.height / config.chunkSize);
-    
-    // Main cache storage: Map<chunkKey, chunkData>
+    this.maxChunks = config.terrainCacheMaxChunks;
     this.cache = new Map();
-    
-    // Statistics
     this.hits = 0;
     this.misses = 0;
-    this.totalChunks = this.chunksW * this.chunksH;
     this.generatedChunks = 0;
+    this.evictions = 0;
   }
-  
-  // Generate chunk key from coordinates
+
   _key(cx, cy) {
     return `${cx},${cy}`;
   }
-  
-  // Store a chunk in cache
-  setChunk(cx, cy, chunkData) {
-    const key = this._key(cx, cy);
-    this.cache.set(key, chunkData);
-    this.generatedChunks++;
-  }
-  
-  // Retrieve a chunk from cache
+
   getChunk(cx, cy) {
     const key = this._key(cx, cy);
     const chunk = this.cache.get(key);
-    
-    if (chunk) {
-      this.hits++;
-      return chunk;
-    } else {
+    if (!chunk) {
       this.misses++;
       return null;
     }
+    this.hits++;
+    this.cache.delete(key);
+    this.cache.set(key, chunk);
+    return chunk;
   }
-  
-  // Check if chunk exists in cache
-  hasChunk(cx, cy) {
-    return this.cache.has(this._key(cx, cy));
+
+  setChunk(cx, cy, chunk) {
+    const key = this._key(cx, cy);
+    this.cache.delete(key);
+    this.cache.set(key, chunk);
+    this.generatedChunks++;
+    if (this.cache.size > this.maxChunks) {
+      this.cache.delete(this.cache.keys().next().value);
+      this.evictions++;
+    }
   }
-  
-  // Get cache statistics
+
   getStats() {
     return {
-      totalChunks: this.totalChunks,
-      generatedChunks: this.generatedChunks,
       cacheSize: this.cache.size,
+      maxChunks: this.maxChunks,
+      generatedChunks: this.generatedChunks,
+      evictions: this.evictions,
       hits: this.hits,
       misses: this.misses,
-      hitRate: this.hits + this.misses > 0 ? this.hits / (this.hits + this.misses) : 0,
-      completeness: this.generatedChunks / this.totalChunks
+      hitRate: this.hits + this.misses ? this.hits / (this.hits + this.misses) : 0,
     };
   }
-  
-  // Clear all cached chunks
-  clear() {
-    this.cache.clear();
-    this.hits = 0;
-    this.misses = 0;
-    this.generatedChunks = 0;
-  }
-  
-  // Get memory usage estimate (rough calculation)
+
   getMemoryUsage() {
-    // Rough estimate: each chunk stores 5 layers * chunkSize^2 * 4 bytes per float
-    const bytesPerChunk = 5 * this.chunkSize * this.chunkSize * 4;
-    const totalBytes = this.cache.size * bytesPerChunk;
-    return {
-      bytesPerChunk,
-      totalBytes,
-      totalMB: totalBytes / (1024 * 1024)
-    };
+    let totalBytes = 0;
+    for (const chunk of this.cache.values()) {
+      totalBytes += chunk.height.byteLength + chunk.waterDepth.byteLength;
+      totalBytes += chunk.moveCost.byteLength + chunk.blocksVision.byteLength;
+      // Ground types are JS strings; 8 bytes per array element is a rough
+      // upper estimate for references, excluding shared string constants.
+      totalBytes += chunk.groundType.length * 8;
+    }
+    return { totalBytes, totalMB: totalBytes / (1024 * 1024) };
   }
 }
 
-// Singleton instance
-let cacheInstance = null;
-
-function createTerrainCache(config) {
-  if (!cacheInstance) {
-    cacheInstance = new TerrainCache(config);
-  }
-  return cacheInstance;
-}
-
-function getTerrainCache() {
-  return cacheInstance;
-}
-
-module.exports = { TerrainCache, createTerrainCache, getTerrainCache };
+module.exports = { TerrainCache };

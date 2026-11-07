@@ -69,7 +69,7 @@ router.get('/agents/:id/perception', (req, res, next) => {
 router.post('/agents/:id/path', (req, res, next) => {
   try {
     const world = getWorld();
-    const { config, agents } = world;
+    const { config, agents, objects } = world;
     const a = agents.getById(req.params.id);
     if (!a) return res.status(404).json({ error: 'not_found' });
 
@@ -83,6 +83,11 @@ router.post('/agents/:id/path', (req, res, next) => {
     const gy = wrap(ty, config.height);
 
     const path = findPath(world, { x: a.x, y: a.y }, { x: gx, y: gy }, { excludeAgentId: a.id });
+    objects.removeAgentFromResources(a.id);
+    a.actionTargetId = null;
+    a.actionTicksRemaining = 0;
+    a.currentGoal = null;
+    a.currentAction = null;
     if (path === null) {
       agents.setPath(a, []);
       return res.status(422).json({ error: 'no_path', from: { x: a.x, y: a.y }, to: { x: gx, y: gy } });

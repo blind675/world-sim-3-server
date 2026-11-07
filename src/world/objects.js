@@ -31,14 +31,10 @@ const OUTCROP_FREQ = 18;
 const BERRY_FREQ = 14;
 const TWO_PI = Math.PI * 2;
 
-// Tree accept set: vegetated, walkable terrain above water.
-const TREE_GROUND = new Set(['ground', 'forest_floor', 'tall_grass']);
-// Food (berry bushes) grow in open ground or forest floor.
-const FOOD_GROUND = new Set(['ground', 'forest_floor']);
 // Rest spots: walkable vegetated ground.
 const REST_GROUND = new Set(['ground', 'forest_floor']);
 
-function acceptTree(cell, config) {
+function acceptTree(cell, config, rng) {
   // Calculate height percentage (0% = minHeight, 100% = maxHeight)
   const heightRange = config.terrain.maxHeight - config.terrain.minHeight;
   const heightPercent = (cell.height - config.terrain.minHeight) / heightRange;
@@ -47,17 +43,17 @@ function acceptTree(cell, config) {
   if (heightPercent < 0.05) return false;
 
   // Very high probability on forest_floor (prime forest habitat)
-  if (cell.groundType === 'forest_floor') return Math.random() < 0.9;
+  if (cell.groundType === 'forest_floor') return rng() < 0.9;
   // High probability on tall_grass (good for trees)
-  if (cell.groundType === 'tall_grass') return Math.random() < 0.4;
+  if (cell.groundType === 'tall_grass') return rng() < 0.4;
   // Moderate probability on short_grass (some trees in high meadows)
-  if (cell.groundType === 'short_grass') return Math.random() < 0.15;
+  if (cell.groundType === 'short_grass') return rng() < 0.15;
   // Low probability on ground (scattered trees)
-  if (cell.groundType === 'ground') return Math.random() < 0.05;
+  if (cell.groundType === 'ground') return rng() < 0.05;
 
   return false;
 }
-function acceptRock(cell, config) {
+function acceptRock(cell, config, rng) {
   // Calculate height percentage (0% = minHeight, 100% = maxHeight)
   const heightRange = config.terrain.maxHeight - config.terrain.minHeight;
   const heightPercent = (cell.height - config.terrain.minHeight) / heightRange;
@@ -65,15 +61,15 @@ function acceptRock(cell, config) {
   // Always accept on rock ground type
   if (cell.groundType === 'rock') return true;
   // High probability on short_grass (high altitude, rocky areas)
-  if (cell.groundType === 'short_grass') return Math.random() < 0.5;
+  if (cell.groundType === 'short_grass') return rng() < 0.5;
   // Moderate probability on tall_grass (sloped areas)
-  if (cell.groundType === 'tall_grass') return Math.random() < 0.2;
+  if (cell.groundType === 'tall_grass') return rng() < 0.2;
   // Low probability on terrain above 35% of world height (was > 25m, now ~32.5m in default config)
-  if (heightPercent > 0.35) return Math.random() < 0.15;
+  if (heightPercent > 0.35) return rng() < 0.15;
   return false;
 }
 
-function acceptFood(cell, config) {
+function acceptFood(cell, config, rng) {
   // Calculate height percentage (0% = minHeight, 100% = maxHeight)
   const heightRange = config.terrain.maxHeight - config.terrain.minHeight;
   const heightPercent = (cell.height - config.terrain.minHeight) / heightRange;
@@ -82,11 +78,11 @@ function acceptFood(cell, config) {
   if (heightPercent < 0.02) return false;
 
   // Very high probability on tall_grass (berry bushes in grasslands)
-  if (cell.groundType === 'tall_grass') return Math.random() < 0.8;
+  if (cell.groundType === 'tall_grass') return rng() < 0.8;
   // High probability on forest_floor (berries in forest understory)
-  if (cell.groundType === 'forest_floor') return Math.random() < 0.5;
+  if (cell.groundType === 'forest_floor') return rng() < 0.5;
   // Moderate probability on ground (some berries in open terrain)
-  if (cell.groundType === 'ground') return Math.random() < 0.2;
+  if (cell.groundType === 'ground') return rng() < 0.2;
 
   return false;
 }
@@ -132,6 +128,7 @@ function createObjectStore(config, terrain, chunkIndex) {
   const byChunk = new Map();
   // id -> object (static chunk-generated + dynamic spawned food)
   const byId = new Map();
+  const generatedCounts = { foodNodes: 0, waterSources: 0, restSpots: 0, totalObjects: 0 };
 
   // --- Food depletion + dynamic nodes (M5) ---
   // food id -> remaining stock. Missing entries are treated as full stock.
@@ -154,6 +151,8 @@ function createObjectStore(config, terrain, chunkIndex) {
   const resourceQueues = new Map();
   // agent id -> resource id they're waiting for
   const agentWaitingFor = new Map();
+  // resource id -> agent id currently using it
+  const resourceUsers = new Map();
 
   // --- Seamless density fields for clustering ---
   // Two independent noise layers (one for forests, one for outcrops). Mapped
@@ -227,7 +226,7 @@ function createObjectStore(config, terrain, chunkIndex) {
       const d = forestDensity(x, y);
       if (d <= 0 || gate > d) continue;
       const cell = terrain.cellAt(x, y);
-      if (!acceptTree(cell, config)) continue;
+      if (!acceptTree(cell, config, rngT)) continue;
       const id = `t-${cx}-${cy}-${i}`;
       objects.push({ id, type: 'tree', x, y });
     }
@@ -243,7 +242,7 @@ function createObjectStore(config, terrain, chunkIndex) {
       const d = outcropDensity(x, y);
       if (d <= 0 || gate > d) continue;
       const cell = terrain.cellAt(x, y);
-      if (!acceptRock(cell, config)) continue;
+      if (!acceptRock(cell, config, rngR)) continue;
       const id = `r-${cx}-${cy}-${i}`;
       objects.push({ id, type: 'rock', x, y });
     }
@@ -261,7 +260,7 @@ function createObjectStore(config, terrain, chunkIndex) {
       const d = berryDensity(x, y);
       if (d <= 0 || gate > d) continue;
       const cell = terrain.cellAt(x, y);
-      if (!acceptFood(cell, config)) continue;
+      if (!acceptFood(cell, config, rngF)) continue;
       // Apply altitude bias
       const altBias = altitudeBias(cell.height, altitude.foodAltitudeBiasStrength, altitude.preferredAltitudeMax);
       if (rngF() > altBias) continue;
@@ -305,6 +304,10 @@ function createObjectStore(config, terrain, chunkIndex) {
     for (const obj of objects) {
       byId.set(obj.id, obj);
       chunkIndex.addObjectId(cx, cy, obj.id);
+      generatedCounts.totalObjects++;
+      if (obj.type === 'food') generatedCounts.foodNodes++;
+      else if (obj.type === 'water_source') generatedCounts.waterSources++;
+      else if (obj.type === 'rest_spot') generatedCounts.restSpots++;
     }
     byChunk.set(key, { objects, generated: true });
     return objects;
@@ -417,7 +420,7 @@ function createObjectStore(config, terrain, chunkIndex) {
     if (nx === srcX && ny === srcY) return null;
 
     const cell = terrain.cellAt(nx, ny);
-    if (!acceptFood(cell, config)) return null;
+    if (!acceptFood(cell, config, spreadRng)) return null;
 
     // Density cap — avoid piling new nodes onto crowded areas.
     if (countFoodWithinRadius(nx, ny, survival.foodDensityRadius, tick) >= survival.foodDensityMax) {
@@ -432,6 +435,8 @@ function createObjectStore(config, terrain, chunkIndex) {
     dynamicFood.set(id, node);
     byId.set(id, { id, type: 'food', x: nx, y: ny });
     chunkIndex.addObjectId(cx, cy, id);
+    generatedCounts.foodNodes++;
+    generatedCounts.totalObjects++;
     return node;
   }
 
@@ -451,17 +456,16 @@ function createObjectStore(config, terrain, chunkIndex) {
     }
   }
 
-  // Called periodically (tick % foodSpreadInterval === 0): every active
-  // food node has a small chance to spawn a child nearby.
+  // Called periodically for dynamic food only. Static food is generated when
+  // chunks are viewed, so spreading it here would let camera movement change
+  // the simulation. Static food can still spread when it regrows after use.
   function tickFoodSpread(tick) {
     if (survival.foodSpreadInterval <= 0) return;
     if (tick % survival.foodSpreadInterval !== 0) return;
     if (survival.foodSpreadChance <= 0) return;
 
-    // Iterate static food nodes via byId (they were registered when their
-    // owning chunk was first generated) and all dynamic nodes.
-    for (const [id, obj] of byId) {
-      if (obj.type !== 'food') continue;
+    // New children become eligible on a later spread tick.
+    for (const [id, obj] of [...dynamicFood]) {
       if (!isAvailable(id, tick)) continue;
       if (spreadRng() >= survival.foodSpreadChance) continue;
       trySpreadFood(obj.x, obj.y, tick);
@@ -483,16 +487,13 @@ function createObjectStore(config, terrain, chunkIndex) {
     };
   }
 
-  // --- Resource queuing functions ---
-
-  // Check if a resource has agents waiting in queue
-  function getQueueLength(resourceId) {
-    const queue = resourceQueues.get(resourceId);
-    return queue ? queue.length : 0;
-  }
+  // --- Resource occupancy and queuing ---
 
   // Add agent to resource queue
   function joinQueue(agentId, resourceId) {
+    if (agentWaitingFor.has(agentId) && agentWaitingFor.get(agentId) !== resourceId) {
+      leaveQueue(agentId);
+    }
     if (!resourceQueues.has(resourceId)) {
       resourceQueues.set(resourceId, []);
     }
@@ -513,21 +514,41 @@ function createObjectStore(config, terrain, chunkIndex) {
         if (index !== -1) {
           queue.splice(index, 1);
         }
+        if (queue.length === 0) resourceQueues.delete(resourceId);
       }
       agentWaitingFor.delete(agentId);
     }
   }
 
-  // Get the next agent in queue for a resource
-  function getNextInQueue(resourceId) {
+  function tryAcquireResource(agentId, resourceId) {
+    if (resourceUsers.get(resourceId) === agentId) return true;
     const queue = resourceQueues.get(resourceId);
-    return queue && queue.length > 0 ? queue[0] : null;
+    if (resourceUsers.has(resourceId) || (queue && queue[0] !== agentId)) {
+      joinQueue(agentId, resourceId);
+      return false;
+    }
+    resourceUsers.set(resourceId, agentId);
+    leaveQueue(agentId);
+    return true;
   }
 
-  // Check if agent is at front of queue
-  function isAtFrontOfQueue(agentId, resourceId) {
-    const queue = resourceQueues.get(resourceId);
-    return queue && queue.length > 0 && queue[0] === agentId;
+  function releaseResource(agentId, resourceId) {
+    if (resourceUsers.get(resourceId) === agentId) resourceUsers.delete(resourceId);
+  }
+
+  function removeAgentFromResources(agentId) {
+    leaveQueue(agentId);
+    for (const [resourceId, userId] of resourceUsers) {
+      if (userId === agentId) resourceUsers.delete(resourceId);
+    }
+  }
+
+  function getGeneratedCounts() {
+    return {
+      ...generatedCounts,
+      generatedChunks: byChunk.size,
+      totalChunks: Math.floor(width / chunkSize) * Math.floor(height / chunkSize),
+    };
   }
 
   return {
@@ -539,11 +560,10 @@ function createObjectStore(config, terrain, chunkIndex) {
     tickRegrowth,
     tickFoodSpread,
     getFoodState,
-    getQueueLength,
-    joinQueue,
-    leaveQueue,
-    getNextInQueue,
-    isAtFrontOfQueue,
+    tryAcquireResource,
+    releaseResource,
+    removeAgentFromResources,
+    getGeneratedCounts,
   };
 }
 

@@ -2,6 +2,8 @@
 
 const { findPath } = require('./pathfinding');
 const { updateAgentMemory } = require('./memory');
+const { splitmix32 } = require('../utils/prng');
+const { wrappedDistance } = require('../utils/wrap');
 const {
   decayNeeds,
   tickAction,
@@ -20,6 +22,7 @@ function createSimulation(world) {
   const { config, agents, objects, perception, deaths } = world;
   const { simulation: simConfig } = config;
   const tickMs = simConfig.tickMs || 200;
+  const rng = splitmix32(config.seed ^ 0x6d2b79f5);
 
   let tickCount = 0;
   let intervalId = null;
@@ -56,15 +59,6 @@ function createSimulation(world) {
     return candidates.length > 0 ? candidates[0] : null;
   }
 
-  // Helper function to advance queue when a resource becomes available
-  function advanceQueue(resourceId, objects) {
-    const nextAgentId = objects.getNextInQueue(resourceId);
-    if (nextAgentId) {
-      // The next agent will be processed in their next tick
-      // No immediate action needed - they'll check if they're at front of queue
-    }
-  }
-
   function tick() {
     tickCount++;
 
@@ -95,6 +89,7 @@ function createSimulation(world) {
         // Record death
         deaths.addDeath(id, tickCount, cause);
       }
+      objects.removeAgentFromResources(id);
       agents.removeById(id);
       deathCount++;
     }
@@ -156,7 +151,7 @@ function createSimulation(world) {
       return pickWanderGoal(agent, 40, 80, urgent.goal);
     }
 
-    if (Math.random() < WANDER_GOAL_PROB) {
+    if (rng() < WANDER_GOAL_PROB) {
       return pickWanderGoal(agent, 20, 50, 'wander');
     }
     return null;
@@ -164,9 +159,8 @@ function createSimulation(world) {
 
   function pickWanderGoal(agent, minDist, maxDist, type) {
     const span = Math.max(1, maxDist - minDist);
-    const rng = Math.random();
-    const dist = minDist + Math.floor(rng * span);
-    const angle = Math.random() * Math.PI * 2;
+    const dist = minDist + Math.floor(rng() * span);
+    const angle = rng() * Math.PI * 2;
     let tx = Math.floor(agent.x + Math.cos(angle) * dist);
     let ty = Math.floor(agent.y + Math.sin(angle) * dist);
     tx = ((tx % config.width) + config.width) % config.width;
@@ -193,27 +187,26 @@ function createSimulation(world) {
     ) {
       tickAction(agent, objects, config, currentTick);
 
-      // If action completed, advance the queue for this resource
-      if (agent.state === 'idle' && agent.actionTargetId) {
-        advanceQueue(agent.actionTargetId, objects);
-      }
       return;
     }
 
     // 3b. If the agent is waiting, check if they can now use the resource
     if (agent.state === 'waiting') {
-      if (agent.actionTargetId && objects.isAtFrontOfQueue(agent.id, agent.actionTargetId)) {
-        // Agent is at front of queue, try to start the action
-        const goal = agent.currentGoal;
-        if (goal) {
-          const actionState = GOAL_TO_ACTION[goal.type];
-          if (actionState) {
-            agent.state = actionState;
-            agent.currentAction = actionState;
-            agent.actionTicksRemaining = config.survival.actionTicks;
-            objects.leaveQueue(agent.id);
-          }
-        }
+      const target = agent.actionTargetId && objects.getById(agent.actionTargetId);
+      const actionState = agent.currentGoal && GOAL_TO_ACTION[agent.currentGoal.type];
+      const valid = target && actionState
+        && wrappedDistance(agent.x, agent.y, target.x, target.y, config.width, config.height) <= 1.5
+        && (target.type !== 'food' || objects.isAvailable(target.id, currentTick));
+      if (!valid) {
+        objects.removeAgentFromResources(agent.id);
+        agent.state = 'idle';
+        agent.currentAction = null;
+        agent.currentGoal = null;
+        agent.actionTargetId = null;
+      } else if (objects.tryAcquireResource(agent.id, target.id)) {
+        agent.state = actionState;
+        agent.currentAction = actionState;
+        agent.actionTicksRemaining = config.survival.actionTicks;
       }
       return;
     }
