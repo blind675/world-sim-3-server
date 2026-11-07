@@ -1,10 +1,7 @@
 // Store for agent death records with timestamps and causes
 // Tracks death statistics without location data
 
-let singleton = null;
-
 function createDeathStore() {
-  if (singleton) return singleton;
 
   const deaths = []; // Array of death records
   const maxDeaths = 1000; // Limit to prevent memory growth
@@ -40,14 +37,13 @@ function createDeathStore() {
     deaths.length = 0;
   }
 
-  singleton = {
+  return {
     addDeath,
     getAll,
     getRecent,
     clear,
+    restore(records) { deaths.splice(0, deaths.length, ...records); },
   };
-
-  return singleton;
 }
 
 module.exports = { createDeathStore };

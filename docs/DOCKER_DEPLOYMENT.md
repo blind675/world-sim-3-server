@@ -1,37 +1,15 @@
-# Docker Deployment
+# Docker deployment
 
-This guide replaces the original workspace Docker notes, which were written for an older version of the project. It describes the current backend repository; the frontend is a separate [Git repository](https://github.com/blind675/world-sim-3-client).
+The backend and frontend are separate repositories. This guide covers the backend container. The original workspace Docker notes described an older layout; current behavior is defined by this repository's code and configuration.
 
-## Local container
+Run exactly one backend replica with a persistent volume mounted at `/data`. Set `NODE_ENV=production`, `SNAPSHOT_DIR=/data`, and a strong, random `CONTROL_API_TOKEN` in the host's secret settings. Keep the token out of Git, Docker build arguments, and browser environment variables. Set `PORT` to the host-provided listener port and `CORS_ORIGIN` to the public viewer origin. CORS only controls browser access; state-changing routes require `Authorization: Bearer <CONTROL_API_TOKEN>`.
 
-From the backend repository root:
+The server reads and validates `/data/world.json` before starting its timer or opening its listener. The file holds versioned mutable simulation state and a checksum. `/data/world.json.bak` is the previous complete snapshot. Writes use a temporary file, file sync, and atomic rename. If the primary is corrupt, startup logs the recovery and uses the backup; if both are unusable, startup fails. A seed or behavior configuration change requires a deliberate new volume or an offline migration. Do not delete a snapshot to bypass an error.
 
-```bash
-docker compose up --build -d
-docker compose ps
-curl http://localhost:4000/api/health
-```
+`SNAPSHOT_INTERVAL_TICKS=6` saves every six ticks. At the default `SIM_TICK_MS=10000`, an abrupt crash can lose up to about 60 seconds; recovery from a corrupt primary using the previous backup can lose up to about two intervals. SIGTERM/SIGINT saves after stopping the timer. Keep the host's termination grace period long enough for a snapshot to finish. Two or more replicas must never share the volume. Keep the volume through redeploys; an ephemeral filesystem loses the world.
 
-The image is defined by `Dockerfile`; local settings are in `docker-compose.yml`. For production-like settings, use `docker compose -f docker-compose.prod.yml up --build -d`. The production compose file sets a 750 ms simulation tick, 512 MiB memory limit, and 0.5 CPU limit. Adjust these using measurements from realistic runs.
+The current snapshot contains agents, memories, paths, deaths, food stock/timers, dynamic food, resource queues, counters, and random generator state. Terrain, static objects, and caches are regenerated. Disk use is roughly proportional to living agents' memories and dynamic food nodes, rather than the 5120 × 5120 terrain grid. Start with a 1 GB volume and 512 MB memory; monitor snapshot size, memory, and save time as the world grows. The default Compose production file limits the container to 0.5 CPU and 512 MB. If saves exceed the tick interval, increase the interval or instance resources based on measurements.
 
-## Configuration
+For local Compose development, run `docker compose up --build -d` and check `docker compose ps`. For production testing, set `CONTROL_API_TOKEN` in your shell or a local untracked `.env`, then run `docker compose -f docker-compose.prod.yml up --build -d`. `docker compose -f docker-compose.prod.yml ps` should report healthy. The Dockerfile health check calls `/api/health` on the configured `PORT`; that endpoint becomes reachable only after restore completes. The development Compose file uses the same named `world_data` volume without production control authentication.
 
-`PORT`, `CORS_ORIGIN`, `SIM_TICK_MS`, `WORLD_SEED`, world dimensions, agent count, terrain cache limit, and behavior settings are environment variables. See `.env.example` and `src/config/worldConfig.js`. Set `CORS_ORIGIN` to the deployed frontend's HTTPS origin. Set the frontend's `NEXT_PUBLIC_BACKEND_URL` to the deployed backend URL when building the web app.
-
-## Before public cloud deployment
-
-1. Add snapshot persistence and restoration for live simulation state. The current process holds agents, needs, memories, resources, and tick progress in memory. Reusing the seed only recreates static world data.
-2. Keep one authoritative simulation instance until state coordination is designed. Multiple replicas would each run their own tick loop and diverge.
-3. Protect simulation-changing API routes before exposing them publicly.
-4. Correct the `Dockerfile` health check: it currently requests `/api/world/status`, while the implemented health route is `/api/health`. Verify the container reports healthy after the change.
-5. Use an always-on service for a continuously advancing simulation. A host that scales to zero pauses the timer.
-
-The backend's root filesystem is not durable on typical cloud containers. Adding a volume alone does not preserve in-memory state; the application must write and restore snapshots on durable storage. A production deployment also needs a backup and recovery procedure.
-
-## Useful checks
-
-```bash
-docker compose logs -f backend
-docker stats
-curl http://localhost:4000/api/simulation/status
-```
+For a managed container host, configure one always-on instance, the persistent mount, environment variables above, the repository Dockerfile, and health path `/api/health`. Disable autoscaling above one replica and avoid scale-to-zero if simulation should keep advancing. The public viewer can read world endpoints; controls are disabled in production unless a separate server-side sign-in flow is built. Keep regular off-host backups of the persistent volume if losing both local snapshot files is unacceptable.

@@ -14,10 +14,7 @@ const {
   GOAL_TO_ACTION,
 } = require('./needs');
 
-let singleton = null;
-
-function createSimulation(world) {
-  if (singleton) return singleton;
+function createSimulation(world, onTick = () => {}) {
 
   const { config, agents, objects, perception, deaths } = world;
   const { simulation: simConfig } = config;
@@ -100,6 +97,7 @@ function createSimulation(world) {
         `[simulation] tick ${tickCount} - ${alive} alive, ${deathCount} deaths total`,
       );
     }
+    onTick(tickCount);
   }
 
   // Probability of picking a new wander goal on any given idle tick when
@@ -248,9 +246,19 @@ function createSimulation(world) {
     }
   }
 
-  // Auto-start the simulation
-  intervalId = setInterval(tick, tickMs);
-  console.log(`[simulation] auto-started - tick interval ${tickMs}ms`);
+  function start() {
+    if (!intervalId) intervalId = setInterval(tick, tickMs);
+  }
+  function stop() {
+    if (intervalId) clearInterval(intervalId);
+    intervalId = null;
+  }
+  function snapshot() { return { tickCount, deathCount, rngState: rng.getState() }; }
+  function restore(state) {
+    tickCount = state.tickCount;
+    deathCount = state.deathCount;
+    rng.setState(state.rngState);
+  }
 
   function getStatus() {
     return {
@@ -261,11 +269,10 @@ function createSimulation(world) {
     };
   }
 
-  singleton = {
+  return {
     getStatus,
+    tick, start, stop, snapshot, restore,
   };
-
-  return singleton;
 }
 
 module.exports = { createSimulation };

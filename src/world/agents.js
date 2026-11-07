@@ -185,6 +185,19 @@ function createAgentStore(config, terrain, chunkIndex) {
   function listAll() { return all.slice(); }
   function getById(id) { return byId.get(id) || null; }
 
+  function restore(saved) {
+    byId.clear();
+    all.length = 0;
+    for (const data of saved) {
+      const agent = structuredClone(data);
+      agent._cx = Math.floor(agent.x / chunkSize);
+      agent._cy = Math.floor(agent.y / chunkSize);
+      byId.set(agent.id, agent);
+      all.push(agent);
+      chunkIndex.addAgentId(agent._cx, agent._cy, agent.id);
+    }
+  }
+
   function setPath(agent, path) {
     agent.path = path || [];
     agent.pathIndex = 0;
@@ -308,6 +321,7 @@ function createAgentStore(config, terrain, chunkIndex) {
     publicView,
     detailView,
     removeById,
+    restore,
   };
 }
 

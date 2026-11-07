@@ -22,6 +22,6 @@ Start the backend from this repository with `npm install`, `cp .env.example .env
 
 ## Current deployment gaps
 
-Live agent and resource state is held in memory. A process restart loses that progress even though the seed can reproduce static terrain and object placement. Production hosting needs snapshots and recovery. The API also exposes simulation-changing endpoints that need access control before public deployment. See [Docker Deployment](DOCKER_DEPLOYMENT.md) for container-specific details.
+Mutable agent and resource state is now saved to versioned snapshots on a persistent volume. Production control routes require a server-side bearer token. A deployment still needs one always-on instance, a durable volume, a configured secret, and off-host backups for disaster recovery. See [Docker Deployment](DOCKER_DEPLOYMENT.md) for the exact settings.
 
 Planned later work includes mobile layout and installability, live updates, multi-agent interactions, reproduction, and trait inheritance. The backend API is intended to serve both web and future mobile clients.

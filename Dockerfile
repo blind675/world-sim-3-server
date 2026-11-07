@@ -1,5 +1,5 @@
-# Use Node.js 18 LTS as base image
-FROM node:18-alpine
+# syntax=docker/dockerfile:1
+FROM node:22-alpine
 
 # Set NODE_ENV for Express internal optimizations and reduced error verbosity.
 ENV NODE_ENV=production
@@ -11,20 +11,18 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies (omits devDependencies thanks to NODE_ENV=production).
-RUN npm ci --omit=dev
+RUN --mount=type=secret,id=proxy_ca \
+    if [ -f /run/secrets/proxy_ca ]; then NODE_EXTRA_CA_CERTS=/run/secrets/proxy_ca npm ci --omit=dev --strict-ssl=true; else npm ci --omit=dev --strict-ssl=true; fi
 
 # Copy source code
 COPY . .
-
-# Create .env from example if .env doesn't exist
-RUN if [ ! -f .env ]; then cp .env.example .env; fi
 
 # Expose port
 EXPOSE 4000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:4000/api/world/status', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
+  CMD node -e "require('http').get('http://127.0.0.1:' + (process.env.PORT || 4000) + '/api/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
 
 # Start the application
 CMD ["npm", "start"]

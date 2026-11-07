@@ -8,6 +8,13 @@ npm-debug.log*
 .env.development.local
 .env.test.local
 .env.production.local
+.env.*
+data
+snapshots
+*.snapshot.json
+world.json*
+**/world.json*
+**/.world.json*
 
 # Git
 .git

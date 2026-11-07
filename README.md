@@ -6,6 +6,8 @@ This is one of two repositories for the project. The [frontend repository](https
 
 ## Quick Start
 
+For persistent single-instance deployment, see [docs/DOCKER_DEPLOYMENT.md](docs/DOCKER_DEPLOYMENT.md).
+
 ### Docker (Recommended)
 ```bash
 docker-compose up -d
@@ -38,6 +40,8 @@ npm run dev
 
 ## Configuration
 
+Production requires `SNAPSHOT_DIR` on a persistent volume and `CONTROL_API_TOKEN` in the server's secret environment. The public frontend remains a viewer; never put this token in `NEXT_PUBLIC_*`. A snapshot is written every `SNAPSHOT_INTERVAL_TICKS` ticks (default 6, or about 60 seconds with the default tick interval) and on SIGTERM/SIGINT. An abrupt crash can lose at most that interval of simulation progress. Restarts reject incompatible snapshots and fail if neither the current snapshot nor its backup is valid.
+
 All configuration via environment variables. See `.env.example` for complete list.
 
 ### Core Settings
@@ -59,7 +63,7 @@ All configuration via environment variables. See `.env.example` for complete lis
 
 ## Docker Deployment
 
-See [Docker Deployment](docs/DOCKER_DEPLOYMENT.md) for the current local container workflow and cloud deployment blockers.
+See [Docker Deployment](docs/DOCKER_DEPLOYMENT.md) for the local container workflow and single-instance deployment settings.
 
 ### Building
 ```bash
@@ -73,9 +77,8 @@ docker-compose up -d
 
 ### Production Considerations
 - Use `NODE_ENV=production`
-- Increase `SIM_TICK_MS` for production (1000ms recommended)
-- Set memory limits (512M recommended)
-- Fix the Dockerfile health-check path before deploying (see the deployment guide)
+- Keep a persistent volume mounted at `SNAPSHOT_DIR` and configure `CONTROL_API_TOKEN`
+- Start with the default 10-second tick and a 512 MiB memory limit; measure before tuning
 
 ## API Endpoints
 

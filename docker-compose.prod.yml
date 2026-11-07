@@ -1,13 +1,14 @@
-version: '3.8'
-
 services:
   backend:
     build: .
     ports:
-      - "4000:4000"
+      - "${PORT:-4000}:${PORT:-4000}"
     environment:
       - NODE_ENV=production
-      - PORT=4000
+      - PORT=${PORT:-4000}
+      - SNAPSHOT_DIR=/data
+      - SNAPSHOT_INTERVAL_TICKS=${SNAPSHOT_INTERVAL_TICKS:-6}
+      - CONTROL_API_TOKEN=${CONTROL_API_TOKEN:?Set CONTROL_API_TOKEN in the deployment environment}
       - CORS_ORIGIN=https://terraria-sim.netlify.app,http://localhost:3000
       - WORLD_SEED=20260420
       - WORLD_WIDTH=5120
@@ -16,7 +17,7 @@ services:
       - WORLD_CHUNK_SIZE=64
       - TERRAIN_MIN_HEIGHT=-10
       - TERRAIN_MAX_HEIGHT=80
-      - SIM_TICK_MS=750
+      - SIM_TICK_MS=${SIM_TICK_MS:-10000}
       - VISION_CONE_DEG=100
       - VISION_NEAR_RADIUS=4
       - MEMORY_DECAY_FLOOR=0.02
@@ -39,6 +40,8 @@ services:
       - FOOD_DENSITY_RADIUS=10
       - FOOD_DENSITY_MAX=4
     restart: unless-stopped
+    volumes:
+      - world_data:/data
     deploy:
       resources:
         limits:
@@ -56,3 +59,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+volumes:
+  world_data:

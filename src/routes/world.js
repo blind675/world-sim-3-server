@@ -156,7 +156,7 @@ router.get('/viewport', (req, res, next) => {
 // Body: { layers?: string[], chunks: [{cx, cy}, ...] }
 // All chunks are emitted at full resolution (stride=1, one cell per output).
 // Coords are wrapped; cx/cy represent chunk indices in [0, chunksW/H).
-const MAX_CHUNKS_PER_BATCH = 64;
+const MAX_CHUNKS_PER_BATCH = 8;
 
 router.post('/chunks', (req, res, next) => {
   try {
@@ -181,6 +181,7 @@ router.post('/chunks', (req, res, next) => {
     }
 
     const cs = config.chunkSize;
+    if (cs * cs * items.length > 32768) return res.status(400).json({ error: 'chunk batch exceeds cell limit' });
     const W = config.width;
     const H = config.height;
     const chunksW = Math.floor(W / cs);
@@ -190,8 +191,11 @@ router.post('/chunks', (req, res, next) => {
 
     for (let n = 0; n < items.length; n++) {
       const it = items[n];
-      const cx = ((parseInt(it.cx, 10) % chunksW) + chunksW) % chunksW;
-      const cy = ((parseInt(it.cy, 10) % chunksH) + chunksH) % chunksH;
+      if (!it || !Number.isSafeInteger(it.cx) || !Number.isSafeInteger(it.cy)) {
+        return res.status(400).json({ error: 'chunk coordinates must be integers' });
+      }
+      const cx = ((it.cx % chunksW) + chunksW) % chunksW;
+      const cy = ((it.cy % chunksH) + chunksH) % chunksH;
 
       const baseX = cx * cs;
       const baseY = cy * cs;

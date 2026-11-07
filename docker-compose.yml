@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   backend:
     build: .
@@ -7,6 +5,8 @@ services:
       - "4000:4000"
     environment:
       - PORT=4000
+      - SNAPSHOT_DIR=/data
+      - SNAPSHOT_INTERVAL_TICKS=6
       - CORS_ORIGIN=http://localhost:3000,https://terraria-sim.netlify.app
       - WORLD_SEED=20260420
       - WORLD_WIDTH=5120
@@ -38,8 +38,13 @@ services:
       - FOOD_DENSITY_RADIUS=10
       - FOOD_DENSITY_MAX=4
     restart: unless-stopped
+    volumes:
+      - world_data:/data
     healthcheck:
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+
+volumes:
+  world_data:

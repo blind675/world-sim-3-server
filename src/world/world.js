@@ -9,12 +9,16 @@ const { createPerception } = require('./perception');
 const { createSimulation } = require('./simulation');
 const { createDeathStore } = require('./deaths');
 const { wrap } = require('../utils/wrap');
+const { createSnapshotStore } = require('./snapshot');
 
 let singleton = null;
 
-function getWorld() {
-  if (singleton) return singleton;
-  const config = buildConfig();
+function createWorld({ config = buildConfig(), snapshotDir = process.env.SNAPSHOT_DIR, autoStart = true } = {}) {
+  if (process.env.NODE_ENV === 'production' && !snapshotDir) throw new Error('SNAPSHOT_DIR is required in production');
+  const interval = Number(process.env.SNAPSHOT_INTERVAL_TICKS || 6);
+  if (!Number.isSafeInteger(interval) || interval < 1) throw new Error('SNAPSHOT_INTERVAL_TICKS must be a positive integer');
+  const snapshotStore = snapshotDir ? createSnapshotStore(snapshotDir, config) : null;
+  const saved = snapshotStore?.load();
   const terrain = createTerrain(config);
 
   const chunkIndex = createChunkIndex(config);
@@ -25,10 +29,41 @@ function getWorld() {
   // simulation tick loop can call perceiveAgent() without extra wiring.
   const worldRef = { config, terrain, chunkIndex, objects, agents };
   const perception = createPerception(worldRef);
-  const simulation = createSimulation({ config, terrain, chunkIndex, objects, agents, perception, deaths, wrap });
-  singleton = { config, terrain, chunkIndex, objects, agents, perception, simulation, deaths, wrap };
-  agents.spawnInitial();
+  let world;
+  const simulation = createSimulation({ config, terrain, chunkIndex, objects, agents, perception, deaths, wrap }, tick => {
+    if (tick % interval === 0) world.saveSnapshot();
+  });
+  world = {
+    config, terrain, chunkIndex, objects, agents, perception, simulation, deaths, wrap,
+    saveSnapshot() {
+      if (snapshotStore) snapshotStore.save({
+        simulation: simulation.snapshot(), agents: agents.listAll(),
+        objects: objects.snapshot(), deaths: deaths.getAll(),
+      });
+    },
+    stop() { simulation.stop(); },
+  };
+  if (saved) {
+    agents.restore(saved.agents);
+    objects.restore(saved.objects);
+    for (const agent of agents.listAll()) {
+      if (agent.actionTargetId && !objects.ensureById(agent.actionTargetId)) {
+        throw new Error(`Snapshot references missing action target ${agent.actionTargetId}`);
+      }
+    }
+    deaths.restore(saved.deaths);
+    simulation.restore(saved.simulation);
+  } else {
+    agents.spawnInitial();
+    world.saveSnapshot();
+  }
+  if (autoStart) simulation.start();
+  return world;
+}
+
+function getWorld() {
+  if (!singleton) singleton = createWorld();
   return singleton;
 }
 
-module.exports = { getWorld };
+module.exports = { getWorld, createWorld };

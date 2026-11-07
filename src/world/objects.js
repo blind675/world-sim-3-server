@@ -365,6 +365,16 @@ function createObjectStore(config, terrain, chunkIndex) {
     return byId.get(id) || null;
   }
 
+  function ensureById(id) {
+    if (byId.has(id)) return byId.get(id);
+    const match = /^(?:f|w|rs)-(\d+)-(\d+)-\d+$/.exec(id || '');
+    if (match && Number(match[1]) < Math.floor(width / chunkSize)
+      && Number(match[2]) < Math.floor(height / chunkSize)) {
+      generateChunk(Number(match[1]), Number(match[2]));
+    }
+    return byId.get(id) || null;
+  }
+
   // --- Food depletion helpers ---
 
   // Returns true if the food node is currently harvestable (has stock
@@ -551,10 +561,46 @@ function createObjectStore(config, terrain, chunkIndex) {
     };
   }
 
+  function snapshot() {
+    return {
+      foodStock: [...foodStock], regrowsAt: [...regrowsAt],
+      dynamicFood: [...dynamicFood.values()], dynamicCounter,
+      resourceQueues: [...resourceQueues], agentWaitingFor: [...agentWaitingFor],
+      resourceUsers: [...resourceUsers], spreadRngState: spreadRng.getState(),
+    };
+  }
+
+  function restore(state) {
+    for (const [target, entries] of [
+      [foodStock, state.foodStock], [regrowsAt, state.regrowsAt],
+      [resourceQueues, state.resourceQueues], [agentWaitingFor, state.agentWaitingFor],
+      [resourceUsers, state.resourceUsers],
+    ]) {
+      target.clear();
+      for (const [key, value] of entries) target.set(key, value);
+    }
+    dynamicFood.clear();
+    for (const node of state.dynamicFood) {
+      dynamicFood.set(node.id, node);
+      byId.set(node.id, { id: node.id, type: 'food', x: node.x, y: node.y });
+      chunkIndex.addObjectId(node.cx, node.cy, node.id);
+      generatedCounts.foodNodes++;
+      generatedCounts.totalObjects++;
+    }
+    dynamicCounter = state.dynamicCounter;
+    spreadRng.setState(state.spreadRngState);
+    // Static nodes referenced by mutable state are regenerated on demand.
+    for (const [id] of [...foodStock, ...regrowsAt, ...resourceUsers, ...resourceQueues]) {
+      if (byId.has(id)) continue;
+      ensureById(id);
+    }
+  }
+
   return {
     getObjectsInChunk,
     queryRect,
     getById,
+    ensureById,
     isAvailable,
     consumeFood,
     tickRegrowth,
@@ -564,6 +610,8 @@ function createObjectStore(config, terrain, chunkIndex) {
     releaseResource,
     removeAgentFromResources,
     getGeneratedCounts,
+    snapshot,
+    restore,
   };
 }
 

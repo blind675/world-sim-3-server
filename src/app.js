@@ -3,6 +3,7 @@
 const express = require('express');
 const cors = require('cors');
 const compression = require('compression');
+const { requireControlToken } = require('./auth');
 
 const worldRoutes = require('./routes/world');
 const entitiesRoutes = require('./routes/entities');
@@ -23,6 +24,12 @@ function createApp() {
   }));
 
   app.use(express.json({ limit: '1mb' }));
+  app.use('/api', (req, res, next) => {
+    if (req.method === 'POST' && (/^\/agents\/[^/]+\/path$/.test(req.path) || req.path === '/sim/step')) {
+      return requireControlToken(req, res, next);
+    }
+    next();
+  });
 
   // Simple request logger for development.
   app.use((req, _res, next) => {

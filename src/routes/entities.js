@@ -11,6 +11,7 @@ const ALL_TYPES = new Set(['tree', 'rock', 'food', 'water_source', 'rest_spot', 
 // the client's viewport is at most 10*128 = 1280 cells per axis, so 2048 is
 // a comfortable upper bound.
 const MAX_VIEWPORT_SIDE = 2048;
+const MAX_VIEWPORT_CHUNKS = 400;
 
 function parseIntParam(v, fallback) {
   if (v === undefined) return fallback;
@@ -23,7 +24,7 @@ function parseIntParam(v, fallback) {
 // world-space rect, accounting for wrap.
 router.get('/in-view', (req, res, next) => {
   try {
-    const { objects } = getWorld();
+    const { objects, config } = getWorld();
 
     const x = parseIntParam(req.query.x, NaN);
     const y = parseIntParam(req.query.y, NaN);
@@ -40,6 +41,9 @@ router.get('/in-view', (req, res, next) => {
       return res.status(400).json({
         error: `viewport too large: ${w}x${h} (max ${MAX_VIEWPORT_SIDE} per side)`,
       });
+    }
+    if ((Math.ceil(w / config.chunkSize) + 1) * (Math.ceil(h / config.chunkSize) + 1) > MAX_VIEWPORT_CHUNKS) {
+      return res.status(400).json({ error: 'viewport spans too many chunks' });
     }
 
     let typesSet = null;
