@@ -11,8 +11,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies (omits devDependencies thanks to NODE_ENV=production).
-RUN --mount=type=secret,id=proxy_ca \
-    if [ -f /run/secrets/proxy_ca ]; then NODE_EXTRA_CA_CERTS=/run/secrets/proxy_ca npm ci --omit=dev --strict-ssl=true; else npm ci --omit=dev --strict-ssl=true; fi
+RUN npm ci --omit=dev --strict-ssl=true
 
 # Copy source code
 COPY . .
