@@ -24,6 +24,9 @@ function createSimulation(world, onTick = () => {}) {
   let tickCount = 0;
   let intervalId = null;
   let deathCount = 0;
+  // Wall-clock anchor for rendering between authoritative ticks. It is
+  // intentionally reset when a restored world starts a new timer.
+  let lastTickAt = null;
 
   // Helper function to calculate agent density in a given area
   function calculateAgentDensity(centerX, centerY, radius) {
@@ -57,6 +60,7 @@ function createSimulation(world, onTick = () => {}) {
   }
 
   function tick() {
+    lastTickAt = Date.now();
     tickCount++;
 
     // World-level timers (food regrowth + periodic spread) run once per
@@ -247,7 +251,10 @@ function createSimulation(world, onTick = () => {}) {
   }
 
   function start() {
-    if (!intervalId) intervalId = setInterval(tick, tickMs);
+    if (!intervalId) {
+      lastTickAt = Date.now();
+      intervalId = setInterval(tick, tickMs);
+    }
   }
   function stop() {
     if (intervalId) clearInterval(intervalId);
@@ -264,6 +271,7 @@ function createSimulation(world, onTick = () => {}) {
     return {
       tickCount,
       tickMs,
+      lastTickAt,
       agentCount: agents.listAll().length,
       deathCount,
     };

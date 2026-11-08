@@ -18,6 +18,16 @@ test('production control routes require a valid bearer token', async () => {
   try {
     await new Promise(resolve => server.once('listening', resolve));
     const base = `http://127.0.0.1:${server.address().port}`;
+    const list = await (await fetch(base + '/api/agents')).json();
+    const agent = list.agents[0];
+    assert.equal(agent.type, 'agent');
+    const view = await (await fetch(base + `/api/entities/in-view?x=${agent.x}&y=${agent.y}&w=2&h=2&types=agent`)).json();
+    assert.ok(view.objects.some(entity => entity.id === agent.id && entity.type === 'agent'));
+    assert.ok(Number.isFinite(view.serverTime));
+    assert.ok(Number.isFinite(view.lastTickAt));
+    const detail = await (await fetch(base + `/api/agents/${agent.id}`)).json();
+    assert.ok(Number.isFinite(detail.serverTime));
+    assert.ok(Number.isFinite(detail.lastTickAt));
     for (const route of ['/api/agents/a-1/path', '/api/sim/step']) {
       const denied = await fetch(base + route, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
       assert.equal(denied.status, 401);

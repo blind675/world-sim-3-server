@@ -32,7 +32,7 @@ router.get('/agents/:id', (req, res, next) => {
     if (!a) return res.status(404).json({ error: 'not_found' });
     const status = simulation.getStatus();
     const currentTick = status.tickCount;
-    res.json(agents.detailView(a, currentTick));
+    res.json({ ...agents.detailView(a, currentTick), serverTime: Date.now(), lastTickAt: status.lastTickAt });
   } catch (e) { next(e); }
 });
 

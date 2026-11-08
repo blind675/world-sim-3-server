@@ -24,7 +24,8 @@ function parseIntParam(v, fallback) {
 // world-space rect, accounting for wrap.
 router.get('/in-view', (req, res, next) => {
   try {
-    const { objects, config } = getWorld();
+    const { objects, config, simulation } = getWorld();
+    const status = simulation.getStatus();
 
     const x = parseIntParam(req.query.x, NaN);
     const y = parseIntParam(req.query.y, NaN);
@@ -74,8 +75,8 @@ router.get('/in-view', (req, res, next) => {
     // Agents (filtered via chunk index + wrapped rect containment).
     let agentOut = [];
     if (!typesSet || typesSet.has('agent')) {
-      const { agents, chunkIndex, config, simulation } = getWorld();
-      const currentTick = simulation.getStatus().tickCount;
+      const { agents, chunkIndex } = getWorld();
+      const currentTick = status.tickCount;
       const chunks = chunkIndex.chunksInRect(x, y, w, h);
       const W = config.width;
       const H = config.height;
@@ -99,6 +100,8 @@ router.get('/in-view', (req, res, next) => {
 
     res.json({
       x, y, w, h,
+      serverTime: Date.now(),
+      lastTickAt: status.lastTickAt,
       objectCount: out.length - agentOut.length,
       agentCount: agentOut.length,
       objects: out,

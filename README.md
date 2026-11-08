@@ -97,6 +97,8 @@ docker-compose up -d
 - `GET /api/entities/in-view` - Objects in viewport
 - `GET /api/agents` - All agents
 - `GET /api/agents/:id` - Agent details
+
+Agent summaries now include `type: "agent"`. The in-view response and agent detail include `serverTime` and `lastTickAt` (Unix milliseconds) so viewers can animate each two-tick movement step between polls. These fields describe the current instance's tick clock and are reset appropriately after a snapshot restore.
 - `POST /api/agents/:id/path` - Set agent path
 
 ### Simulation

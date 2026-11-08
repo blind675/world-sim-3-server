@@ -133,6 +133,7 @@ function createAgentStore(config, terrain, chunkIndex) {
   function publicView(a, currentTick) {
     return {
       id: a.id,
+      type: 'agent',
       x: a.x,
       y: a.y,
       facing: a.facing,
