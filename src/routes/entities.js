@@ -69,7 +69,7 @@ router.get('/in-view', (req, res, next) => {
     const out = [];
     if (includeObjects) {
       const found = objects.queryRect(x, y, w, h, objectTypes);
-      for (const o of found) out.push({ id: o.id, type: o.type, x: o.x, y: o.y });
+      for (const o of found) out.push({ id: o.id, type: o.type, definitionId: o.definitionId, x: o.x, y: o.y });
     }
 
     // Agents (filtered via chunk index + wrapped rect containment).

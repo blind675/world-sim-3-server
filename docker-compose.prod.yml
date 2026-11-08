@@ -8,6 +8,7 @@ services:
       - PORT=${PORT:-4000}
       - SNAPSHOT_DIR=/data
       - SNAPSHOT_INTERVAL_TICKS=${SNAPSHOT_INTERVAL_TICKS:-6}
+      - OBJECT_CATALOG_PATH=${OBJECT_CATALOG_PATH:-/app/config/object-catalog.json}
       - CONTROL_API_TOKEN=${CONTROL_API_TOKEN:?Set CONTROL_API_TOKEN in the deployment environment}
       - CORS_ORIGIN=https://terraria-sim.netlify.app,http://localhost:3000
       - WORLD_SEED=20260420

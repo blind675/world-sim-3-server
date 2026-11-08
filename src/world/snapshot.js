@@ -32,7 +32,7 @@ function assertState(state) {
   }
 }
 
-function createSnapshotStore(directory, config) {
+function createSnapshotStore(directory, config, objectCatalog) {
   fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
   const primary = path.join(directory, FILE);
   const backup = `${primary}.bak`;
@@ -43,6 +43,12 @@ function createSnapshotStore(directory, config) {
     const document = JSON.parse(fs.readFileSync(filename, 'utf8'));
     if (document.version !== VERSION) throw new Error(`Snapshot version ${document.version} is incompatible with version ${VERSION}`);
     if (document.configHash !== configHash) throw new Error('Snapshot world seed/configuration mismatch');
+    if (document.catalogHash !== undefined && document.catalogHash !== objectCatalog.hash) {
+      throw new Error('Snapshot object catalogue mismatch; restore the pinned catalogue or start a new world');
+    }
+    if (document.catalogHash === undefined && !objectCatalog.legacyCompatible) {
+      throw new Error('Snapshot object catalogue mismatch: legacy snapshot requires the built-in catalogue');
+    }
     const bytes = JSON.stringify(document.state);
     if (crypto.createHash('sha256').update(bytes).digest('hex') !== document.checksum) throw new Error('Snapshot checksum mismatch');
     assertState(document.state);
@@ -69,7 +75,7 @@ function createSnapshotStore(directory, config) {
   function save(state) {
     assertState(state);
     const checksum = crypto.createHash('sha256').update(JSON.stringify(state)).digest('hex');
-    const document = JSON.stringify({ version: VERSION, configHash, checksum, state });
+    const document = JSON.stringify({ version: VERSION, configHash, catalogHash: objectCatalog.hash, checksum, state });
     const temp = path.join(directory, `.${FILE}.${process.pid}.${crypto.randomUUID()}.tmp`);
     const backupTemp = `${temp}.bak`;
     try {

@@ -10,6 +10,7 @@
 const { splitmix32 } = require('../utils/prng');
 const { createPerlin4D } = require('./perlin');
 const { wrappedDistance } = require('../utils/wrap');
+const { loadObjectCatalog } = require('./objectCatalog');
 
 // Candidate counts per 128x128 chunk. We sample more candidates than Phase 2a
 // because each one also has to pass a low-frequency density field (forest /
@@ -120,7 +121,7 @@ function hashChunk(seed, cx, cy) {
   return h >>> 0;
 }
 
-function createObjectStore(config, terrain, chunkIndex) {
+function createObjectStore(config, terrain, chunkIndex, objectCatalog = loadObjectCatalog()) {
   const { seed, chunkSize, width, height } = config;
   const survival = config.survival;
   const altitude = config.altitude;
@@ -162,6 +163,10 @@ function createObjectStore(config, terrain, chunkIndex) {
   const berryNoise = createPerlin4D(seed ^ 0x36c9a5e1);
   const kx = TWO_PI / width;
   const ky = TWO_PI / height;
+
+  function makeObject(id, type, x, y, cell) {
+    return { id, type, definitionId: objectCatalog.choose(type, id, cell, seed).id, x, y };
+  }
 
   function seamless(noiseFn, x, y, fx, fy) {
     const ax = kx * x * fx;
@@ -228,7 +233,7 @@ function createObjectStore(config, terrain, chunkIndex) {
       const cell = terrain.cellAt(x, y);
       if (!acceptTree(cell, config, rngT)) continue;
       const id = `t-${cx}-${cy}-${i}`;
-      objects.push({ id, type: 'tree', x, y });
+      objects.push(makeObject(id, 'tree', x, y, cell));
     }
 
     // --- Rocks ---
@@ -244,7 +249,7 @@ function createObjectStore(config, terrain, chunkIndex) {
       const cell = terrain.cellAt(x, y);
       if (!acceptRock(cell, config, rngR)) continue;
       const id = `r-${cx}-${cy}-${i}`;
-      objects.push({ id, type: 'rock', x, y });
+      objects.push(makeObject(id, 'rock', x, y, cell));
     }
 
     // --- Food (berry bushes) ---
@@ -264,7 +269,7 @@ function createObjectStore(config, terrain, chunkIndex) {
       // Apply altitude bias
       const altBias = altitudeBias(cell.height, altitude.foodAltitudeBiasStrength, altitude.preferredAltitudeMax);
       if (rngF() > altBias) continue;
-      objects.push({ id: `f-${cx}-${cy}-${i}`, type: 'food', x, y });
+      objects.push(makeObject(`f-${cx}-${cy}-${i}`, 'food', x, y, cell));
     }
 
     // --- Water sources ---
@@ -278,7 +283,7 @@ function createObjectStore(config, terrain, chunkIndex) {
       const y = baseY + ly;
       const cell = terrain.cellAt(x, y);
       if (!acceptWater(cell)) continue;
-      objects.push({ id: `w-${cx}-${cy}-${i}`, type: 'water_source', x, y });
+      objects.push(makeObject(`w-${cx}-${cy}-${i}`, 'water_source', x, y, cell));
     }
 
     // --- Rest spots ---
@@ -297,7 +302,7 @@ function createObjectStore(config, terrain, chunkIndex) {
       // Apply altitude bias
       const altBias = altitudeBias(cell.height, altitude.restAltitudeBiasStrength, altitude.preferredAltitudeMax);
       if (rngRS() > altBias) continue;
-      objects.push({ id: `rs-${cx}-${cy}-${i}`, type: 'rest_spot', x, y });
+      objects.push(makeObject(`rs-${cx}-${cy}-${i}`, 'rest_spot', x, y, cell));
     }
 
     // Register with chunk index + id map.
@@ -354,7 +359,7 @@ function createObjectStore(config, terrain, chunkIndex) {
         let dy = dyn.y - y;
         dy = ((dy % H) + H) % H;
         if (dx < w && dy < h) {
-          out.push({ id: dyn.id, type: dyn.type, x: dyn.x, y: dyn.y });
+          out.push({ id: dyn.id, type: dyn.type, definitionId: dyn.definitionId, x: dyn.x, y: dyn.y });
         }
       }
     }
@@ -441,9 +446,9 @@ function createObjectStore(config, terrain, chunkIndex) {
     const id = `fd-${dynamicCounter}`;
     const cx = Math.floor(nx / chunkSize);
     const cy = Math.floor(ny / chunkSize);
-    const node = { id, type: 'food', x: nx, y: ny, cx, cy };
+    const node = { ...makeObject(id, 'food', nx, ny, cell), cx, cy };
     dynamicFood.set(id, node);
-    byId.set(id, { id, type: 'food', x: nx, y: ny });
+    byId.set(id, { id, type: 'food', definitionId: node.definitionId, x: nx, y: ny });
     chunkIndex.addObjectId(cx, cy, id);
     generatedCounts.foodNodes++;
     generatedCounts.totalObjects++;
@@ -581,8 +586,11 @@ function createObjectStore(config, terrain, chunkIndex) {
     }
     dynamicFood.clear();
     for (const node of state.dynamicFood) {
-      dynamicFood.set(node.id, node);
-      byId.set(node.id, { id: node.id, type: 'food', x: node.x, y: node.y });
+      // Snapshots created before the catalogue had no definitionId.
+      const restored = { ...node, definitionId: node.definitionId || makeObject(node.id, 'food', node.x, node.y, terrain.cellAt(node.x, node.y)).definitionId };
+      if (objectCatalog.get(restored.definitionId)?.behavior !== 'food') throw new Error(`Snapshot references invalid food definition ${restored.definitionId}`);
+      dynamicFood.set(node.id, restored);
+      byId.set(node.id, { id: node.id, type: 'food', definitionId: restored.definitionId, x: node.x, y: node.y });
       chunkIndex.addObjectId(node.cx, node.cy, node.id);
       generatedCounts.foodNodes++;
       generatedCounts.totalObjects++;

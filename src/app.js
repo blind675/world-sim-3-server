@@ -9,6 +9,7 @@ const worldRoutes = require('./routes/world');
 const entitiesRoutes = require('./routes/entities');
 const agentsRoutes = require('./routes/agents');
 const { createSimulationRoutes } = require('./routes/simulation');
+const { getWorld } = require('./world/world');
 
 function createApp() {
   const app = express();
@@ -42,6 +43,11 @@ function createApp() {
 
   app.get('/api/health', (_req, res) => {
     res.json({ status: 'ok', uptimeSec: Math.round(process.uptime()) });
+  });
+
+  app.get('/api/object-definitions', (_req, res, next) => {
+    try { res.json(getWorld().objectCatalog.publicView()); }
+    catch (error) { next(error); }
   });
 
   app.use('/api/world', worldRoutes);

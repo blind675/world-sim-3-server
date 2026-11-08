@@ -120,7 +120,7 @@ function hasLineOfSight(world, agent, cx, cy, occluderCells) {
 }
 
 function createPerception(world) {
-  const { config, chunkIndex, objects, agents, terrain } = world;
+  const { config, chunkIndex, objects, agents, terrain, objectCatalog } = world;
   const { width, height } = config;
   const perceptionCfg = config.perception;
 
@@ -128,9 +128,12 @@ function createPerception(world) {
   // Done once per perceive call so LOS tests are O(1) per cell.
   function buildOccluderSet(bboxX, bboxY, bboxW, bboxH) {
     const out = new Set();
-    const found = objects.queryRect(bboxX, bboxY, bboxW, bboxH, OPAQUE_OBJECT_TYPES);
+    const found = objects.queryRect(bboxX, bboxY, bboxW, bboxH, null);
     for (const o of found) {
-      out.add(o.y * width + o.x);
+      const opaque = objectCatalog && o.definitionId
+        ? objectCatalog.get(o.definitionId)?.blocksVision
+        : OPAQUE_OBJECT_TYPES.has(o.type);
+      if (opaque) out.add(o.y * width + o.x);
     }
     return out;
   }

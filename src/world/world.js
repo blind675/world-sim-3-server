@@ -10,31 +10,33 @@ const { createSimulation } = require('./simulation');
 const { createDeathStore } = require('./deaths');
 const { wrap } = require('../utils/wrap');
 const { createSnapshotStore } = require('./snapshot');
+const { loadObjectCatalog } = require('./objectCatalog');
 
 let singleton = null;
 
-function createWorld({ config = buildConfig(), snapshotDir = process.env.SNAPSHOT_DIR, autoStart = true } = {}) {
+function createWorld({ config = buildConfig(), snapshotDir = process.env.SNAPSHOT_DIR, objectCatalogPath, autoStart = true } = {}) {
   if (process.env.NODE_ENV === 'production' && !snapshotDir) throw new Error('SNAPSHOT_DIR is required in production');
   const interval = Number(process.env.SNAPSHOT_INTERVAL_TICKS || 6);
   if (!Number.isSafeInteger(interval) || interval < 1) throw new Error('SNAPSHOT_INTERVAL_TICKS must be a positive integer');
-  const snapshotStore = snapshotDir ? createSnapshotStore(snapshotDir, config) : null;
+  const objectCatalog = loadObjectCatalog(objectCatalogPath);
+  const snapshotStore = snapshotDir ? createSnapshotStore(snapshotDir, config, objectCatalog) : null;
   const saved = snapshotStore?.load();
   const terrain = createTerrain(config);
 
   const chunkIndex = createChunkIndex(config);
-  const objects = createObjectStore(config, terrain, chunkIndex);
+  const objects = createObjectStore(config, terrain, chunkIndex, objectCatalog);
   const agents = createAgentStore(config, terrain, chunkIndex);
   const deaths = createDeathStore();
   // Perception needs references to the other stores; build it eagerly so the
   // simulation tick loop can call perceiveAgent() without extra wiring.
-  const worldRef = { config, terrain, chunkIndex, objects, agents };
+  const worldRef = { config, terrain, chunkIndex, objects, agents, objectCatalog };
   const perception = createPerception(worldRef);
   let world;
   const simulation = createSimulation({ config, terrain, chunkIndex, objects, agents, perception, deaths, wrap }, tick => {
     if (tick % interval === 0) world.saveSnapshot();
   });
   world = {
-    config, terrain, chunkIndex, objects, agents, perception, simulation, deaths, wrap,
+    config, terrain, chunkIndex, objects, agents, perception, simulation, deaths, objectCatalog, wrap,
     saveSnapshot() {
       if (snapshotStore) snapshotStore.save({
         simulation: simulation.snapshot(), agents: agents.listAll(),

@@ -18,6 +18,13 @@ test('production control routes require a valid bearer token', async () => {
   try {
     await new Promise(resolve => server.once('listening', resolve));
     const base = `http://127.0.0.1:${server.address().port}`;
+    const catalogue = await (await fetch(base + '/api/object-definitions')).json();
+    assert.equal(catalogue.schemaVersion, 1);
+    assert.ok(catalogue.definitions.some(def => def.id === 'pine_tree'));
+    assert.match(catalogue.hash, /^[0-9a-f]{64}$/);
+    const objects = await (await fetch(base + '/api/entities/in-view?x=0&y=0&w=64&h=64&types=tree,rock,food')).json();
+    assert.ok(objects.objects.length > 0);
+    assert.ok(objects.objects.every(object => catalogue.definitions.some(def => def.id === object.definitionId && def.behavior === object.type)));
     const list = await (await fetch(base + '/api/agents')).json();
     const agent = list.agents[0];
     assert.equal(agent.type, 'agent');

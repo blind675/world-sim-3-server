@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "id": "core",
+  "revision": 1,
+  "definitions": [
+    {
+      "id": "tree", "name": "Broadleaf tree", "category": "material", "behavior": "tree",
+      "color": "#2f7a2d", "sprite": "tree", "blocksVision": true,
+      "spawn": { "strategy": "forest", "weight": 1 }
+    },
+    {
+      "id": "pine_tree", "name": "Pine tree", "category": "material", "behavior": "tree",
+      "color": "#246346", "sprite": "pine_tree", "blocksVision": true,
+      "spawn": { "strategy": "forest", "weight": 0.6, "preferredGroundTypes": ["forest_floor", "tall_grass"] }
+    },
+    {
+      "id": "rock", "name": "Granite rock", "category": "material", "behavior": "rock",
+      "color": "#8d8d95", "sprite": "rock", "blocksVision": true,
+      "spawn": { "strategy": "outcrop", "weight": 1 }
+    },
+    {
+      "id": "slate_rock", "name": "Slate rock", "category": "material", "behavior": "rock",
+      "color": "#657484", "sprite": "slate_rock", "blocksVision": true,
+      "spawn": { "strategy": "outcrop", "weight": 0.5, "preferredGroundTypes": ["rock", "short_grass"] }
+    },
+    {
+      "id": "food", "name": "Red berry bush", "category": "food", "behavior": "food",
+      "color": "#c8372d", "sprite": "food", "blocksVision": false,
+      "spawn": { "strategy": "berry_patch", "weight": 1 }
+    },
+    {
+      "id": "blueberry_bush", "name": "Blueberry bush", "category": "food", "behavior": "food",
+      "color": "#4274c9", "sprite": "blueberry_bush", "blocksVision": false,
+      "spawn": { "strategy": "berry_patch", "weight": 0.5, "preferredGroundTypes": ["forest_floor", "tall_grass"] }
+    },
+    {
+      "id": "water_source", "name": "Drinking water", "category": "water", "behavior": "water_source",
+      "color": "#3d8ed0", "sprite": "water_source", "blocksVision": false,
+      "spawn": { "strategy": "shoreline", "weight": 1 }
+    },
+    {
+      "id": "rest_spot", "name": "Rest spot", "category": "rest", "behavior": "rest_spot",
+      "color": "#8a6436", "sprite": "rest_spot", "blocksVision": false,
+      "spawn": { "strategy": "forest_rest", "weight": 1 }
+    }
+  ]
+}

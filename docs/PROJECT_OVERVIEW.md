@@ -15,6 +15,7 @@ The simulation is agent-first: a deterministic, wrapped 5120 × 5120 cell world 
 - Terrain chunks and seeded static objects are generated on demand. The terrain cache is bounded; a full world heightmap is not built at startup.
 - Viewport and chunk APIs serve only requested map data. Resource statistics report coverage of generated chunks.
 - The frontend reads `NEXT_PUBLIC_BACKEND_URL` and polls the backend for updates.
+- Versioned object definitions live in a JSON catalogue. Existing object ids and placement stay stable while validated definitions select variants, colours, sprites, and vision blocking. Snapshots pin the catalogue hash.
 
 ## Run locally
 
@@ -24,4 +25,4 @@ Start the backend from this repository with `npm install`, `cp .env.example .env
 
 Mutable agent and resource state is now saved to versioned snapshots on a persistent volume. Production control routes require a server-side bearer token. A deployment still needs one always-on instance, a durable volume, a configured secret, and off-host backups for disaster recovery. See [Docker Deployment](DOCKER_DEPLOYMENT.md) for the exact settings.
 
-Planned later work includes mobile layout and installability, live updates, multi-agent interactions, reproduction, and trait inheritance. The backend API is intended to serve both web and future mobile clients.
+Planned later work includes installability, live updates, multi-agent interactions, reproduction, and trait inheritance. The backend API is intended to serve both web and future mobile clients.
