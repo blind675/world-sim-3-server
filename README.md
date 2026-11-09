@@ -4,7 +4,7 @@ Node.js + Express backend for the FlatWorld life simulation. Provides authoritat
 
 This is the backend repository for a three-repository project. The [web client](https://github.com/blind675/world-sim-3-client) and [mobile client](https://github.com/blind675/world-sim-3-mobile) are separate viewers. Shared project context is in [Project Overview](docs/PROJECT_OVERVIEW.md), [Product Requirements](docs/PRODUCT_REQUIREMENTS.md), and the [Build Checklist](docs/BUILD_CHECKLIST.md). The requirements and checklist are historical planning documents; code and tests describe current behavior.
 
-Routine work is committed to `staging`; `main` is reserved for an explicitly requested production release. See the [release workflow](docs/RELEASE_WORKFLOW.md).
+Routine work is committed to `staging`; `main` is reserved for an explicitly requested production release. See the [release workflow](docs/RELEASE_WORKFLOW.md) and the [current simulation roadmap](docs/SIMULATION_ROADMAP.md).
 
 ## Quick Start
 
