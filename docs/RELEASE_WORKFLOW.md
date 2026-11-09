@@ -6,6 +6,8 @@ All routine work goes to the `staging` branch of the repository it changes. `mai
 
 Before editing, read that repository's `AGENTS.md`, inspect the worktree, fetch `origin`, and switch to `staging`. Preserve any existing local changes rather than resetting them. Make ordinary commits on `staging` and push `origin staging`; report the branch and commit to the user. Do not merge or push `main` merely because checks passed, a task is complete, or an older instruction says to push all work to `main`.
 
+Some cloud checkouts fetch only `main` by default. If `origin/staging` is missing despite the branch existing on GitHub, add `+refs/heads/staging:refs/remotes/origin/staging` to `remote.origin.fetch`, fetch again, and then switch to or create the local `staging` branch tracking `origin/staging`.
+
 For cross-repository work, update the matching `staging` branches and keep API changes compatible across the server, web, and mobile viewers. Staging commits are development work, not deployed releases.
 
 ## Explicit release
