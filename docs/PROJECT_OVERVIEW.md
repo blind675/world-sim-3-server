@@ -1,12 +1,15 @@
 # Life Simulation v3 — Project Overview
 
 This overview preserves the useful context from the original workspace README.
-The project is split across two Git repositories:
+The project is split across three Git repositories:
 
 - [Backend](https://github.com/blind675/world-sim-3-server): Node.js and Express; authoritative world, simulation, agents, and REST API.
 - [Frontend](https://github.com/blind675/world-sim-3-client): Next.js, TypeScript, and Tailwind; canvas viewer and inspection panels.
+- [Mobile](https://github.com/blind675/world-sim-3-mobile): Expo and React Native; native read-only viewer.
 
 The simulation is agent-first: a deterministic, wrapped 5120 × 5120 cell world supports autonomous agents that move, perceive, remember, and respond to hunger, thirst, and tiredness. The browser shows terrain, resources, agents, and simulation statistics. Milestones 0–5 are substantially implemented; the [PRD](PRODUCT_REQUIREMENTS.md) and [checklist](BUILD_CHECKLIST.md) contain the longer-term vision and historical progress notes.
+
+Current ideas for the next simulation phase are collected in a [discussion draft](SIMULATION_DESIGN_DRAFT.md). Its proposals and open questions are not implemented requirements.
 
 ## Design decisions
 
@@ -25,4 +28,4 @@ Start the backend from this repository with `npm install`, `cp .env.example .env
 
 Mutable agent and resource state is now saved to versioned snapshots on a persistent volume. Production control routes require a server-side bearer token. A deployment still needs one always-on instance, a durable volume, a configured secret, and off-host backups for disaster recovery. See [Docker Deployment](DOCKER_DEPLOYMENT.md) for the exact settings.
 
-Planned later work includes installability, live updates, multi-agent interactions, reproduction, and trait inheritance. The backend API is intended to serve both web and future mobile clients.
+Planned later work includes richer live updates, multi-agent interactions, reproduction, and trait inheritance. The backend API serves both web and mobile viewers.
