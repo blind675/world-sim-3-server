@@ -9,7 +9,7 @@ const worldRoutes = require('./routes/world');
 const entitiesRoutes = require('./routes/entities');
 const agentsRoutes = require('./routes/agents');
 const { createSimulationRoutes } = require('./routes/simulation');
-const { getWorld } = require('./world/world');
+const { getWorld, resetWorld } = require('./world/world');
 
 function createApp() {
   const app = express();
@@ -42,7 +42,27 @@ function createApp() {
   });
 
   app.get('/api/health', (_req, res) => {
-    res.json({ status: 'ok', uptimeSec: Math.round(process.uptime()) });
+    try {
+      getWorld();
+      res.json({ status: 'ok', uptimeSec: Math.round(process.uptime()) });
+    } catch (error) {
+      res.status(503).json({ status: 'unavailable', error: 'world_not_ready' });
+    }
+  });
+
+  app.post('/api/admin/world/reset', requireControlToken, (req, res, next) => {
+    try {
+      const current = getWorld().simulation.getStatus();
+      if (req.body?.confirmation !== 'RESET WORLD') {
+        return res.status(400).json({ error: 'confirmation_required' });
+      }
+      if (req.body?.worldId !== current.worldId) {
+        return res.status(409).json({ error: 'world_changed', current });
+      }
+      const fresh = resetWorld().simulation.getStatus();
+      res.set('Cache-Control', 'no-store');
+      res.json({ previous: current, current: fresh });
+    } catch (error) { next(error); }
   });
 
   app.get('/api/object-definitions', (_req, res, next) => {

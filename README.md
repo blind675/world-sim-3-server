@@ -106,6 +106,9 @@ Object instances retain their existing `type` and stable id, and now expose a `d
 
 ### Simulation
 - `POST /api/sim/step` - Manual simulation step
+- `POST /api/admin/world/reset` - Start a fresh world (production bearer token, current `worldId`, and `confirmation: "RESET WORLD"` required)
+
+`GET /api/simulation/status` includes a `worldId` that changes on reset. The reset clears agents, deaths, mutable resources, and tick progress, then persists the fresh world to both snapshot copies. Terrain and static objects regenerate from the configured seed, so they retain the same layout. A reset marker lets startup finish an interrupted reset instead of restoring the previous world. The web app's `/admin/world` page uses a separate password and a server-side proxy; configure its secrets in Netlify as described in the frontend README.
 
 ## Development
 

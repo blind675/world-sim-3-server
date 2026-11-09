@@ -30,9 +30,13 @@ for (const signal of ['SIGTERM', 'SIGINT']) {
   process.on(signal, () => {
     if (shuttingDown) return;
     shuttingDown = true;
-    world.stop();
+    // A world reset replaces the singleton. Save the active world, not the
+    // instance that existed when this process first opened its listener.
+    let activeWorld;
+    try { activeWorld = getWorld(); activeWorld.stop(); }
+    catch (error) { console.error('[snapshot] active world unavailable during shutdown', error); process.exitCode = 1; }
     server.close(() => {
-      try { world.saveSnapshot(); }
+      try { activeWorld?.saveSnapshot(); }
       catch (error) { console.error('[snapshot] shutdown save failed', error); process.exitCode = 1; }
     });
   });

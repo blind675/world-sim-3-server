@@ -14,13 +14,13 @@ const { loadObjectCatalog } = require('./objectCatalog');
 
 let singleton = null;
 
-function createWorld({ config = buildConfig(), snapshotDir = process.env.SNAPSHOT_DIR, objectCatalogPath, autoStart = true } = {}) {
+function createWorld({ config = buildConfig(), snapshotDir = process.env.SNAPSHOT_DIR, objectCatalogPath, autoStart = true, resetSnapshot = false } = {}) {
   if (process.env.NODE_ENV === 'production' && !snapshotDir) throw new Error('SNAPSHOT_DIR is required in production');
   const interval = Number(process.env.SNAPSHOT_INTERVAL_TICKS || 6);
   if (!Number.isSafeInteger(interval) || interval < 1) throw new Error('SNAPSHOT_INTERVAL_TICKS must be a positive integer');
   const objectCatalog = loadObjectCatalog(objectCatalogPath);
   const snapshotStore = snapshotDir ? createSnapshotStore(snapshotDir, config, objectCatalog) : null;
-  const saved = snapshotStore?.load();
+  const saved = resetSnapshot ? null : snapshotStore?.load();
   const terrain = createTerrain(config);
 
   const chunkIndex = createChunkIndex(config);
@@ -37,11 +37,13 @@ function createWorld({ config = buildConfig(), snapshotDir = process.env.SNAPSHO
   });
   world = {
     config, terrain, chunkIndex, objects, agents, perception, simulation, deaths, objectCatalog, wrap,
+    snapshotDir, objectCatalogPath,
+    snapshotState() {
+      return { simulation: simulation.snapshot(), agents: agents.listAll(),
+        objects: objects.snapshot(), deaths: deaths.getAll() };
+    },
     saveSnapshot() {
-      if (snapshotStore) snapshotStore.save({
-        simulation: simulation.snapshot(), agents: agents.listAll(),
-        objects: objects.snapshot(), deaths: deaths.getAll(),
-      });
+      if (snapshotStore) snapshotStore.save(world.snapshotState());
     },
     stop() { simulation.stop(); },
   };
@@ -57,7 +59,8 @@ function createWorld({ config = buildConfig(), snapshotDir = process.env.SNAPSHO
     simulation.restore(saved.simulation);
   } else {
     agents.spawnInitial();
-    world.saveSnapshot();
+    if (resetSnapshot) snapshotStore?.reset(world.snapshotState());
+    else world.saveSnapshot();
   }
   if (autoStart) simulation.start();
   return world;
@@ -68,4 +71,26 @@ function getWorld() {
   return singleton;
 }
 
-module.exports = { getWorld, createWorld };
+function resetWorld() {
+  const previous = getWorld();
+  previous.stop();
+  try {
+    const fresh = createWorld({
+      config: previous.config,
+      snapshotDir: previous.snapshotDir,
+      objectCatalogPath: previous.objectCatalogPath,
+      autoStart: false,
+      resetSnapshot: true,
+    });
+    singleton = fresh;
+    fresh.simulation.start();
+    return fresh;
+  } catch (error) {
+    // A committed reset marker must be recovered before this process can
+    // serve or save world state again. The next request retries restoration.
+    singleton = null;
+    throw error;
+  }
+}
+
+module.exports = { getWorld, createWorld, resetWorld };

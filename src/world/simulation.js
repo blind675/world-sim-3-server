@@ -1,5 +1,6 @@
 'use strict';
 
+const { randomUUID } = require('node:crypto');
 const { findPath } = require('./pathfinding');
 const { updateAgentMemory } = require('./memory');
 const { splitmix32 } = require('../utils/prng');
@@ -24,6 +25,7 @@ function createSimulation(world, onTick = () => {}) {
   let tickCount = 0;
   let intervalId = null;
   let deathCount = 0;
+  let worldId = randomUUID();
   // Wall-clock anchor for rendering between authoritative ticks. It is
   // intentionally reset when a restored world starts a new timer.
   let lastTickAt = null;
@@ -260,11 +262,12 @@ function createSimulation(world, onTick = () => {}) {
     if (intervalId) clearInterval(intervalId);
     intervalId = null;
   }
-  function snapshot() { return { tickCount, deathCount, rngState: rng.getState() }; }
+  function snapshot() { return { tickCount, deathCount, rngState: rng.getState(), worldId }; }
   function restore(state) {
     tickCount = state.tickCount;
     deathCount = state.deathCount;
     rng.setState(state.rngState);
+    worldId = state.worldId || randomUUID();
   }
 
   function getStatus() {
@@ -274,6 +277,7 @@ function createSimulation(world, onTick = () => {}) {
       lastTickAt,
       agentCount: agents.listAll().length,
       deathCount,
+      worldId,
     };
   }
 

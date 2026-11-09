@@ -19,6 +19,10 @@ function assertState(state) {
     || !integer(state.simulation.deathCount) || !integer(state.simulation.rngState)
     || !integer(state.objects.dynamicCounter) || !integer(state.objects.spreadRngState)
     || !Array.isArray(state.objects.dynamicFood)) throw new Error('Invalid snapshot state');
+  if (state.simulation.worldId !== undefined &&
+    (typeof state.simulation.worldId !== 'string' || !/^[0-9a-f-]{36}$/.test(state.simulation.worldId))) {
+    throw new Error('Invalid snapshot world ID');
+  }
   for (const name of ['foodStock', 'regrowsAt', 'resourceQueues', 'agentWaitingFor', 'resourceUsers']) {
     if (!Array.isArray(state.objects[name]) || !state.objects[name].every(e => Array.isArray(e) && e.length === 2)) {
       throw new Error(`Invalid snapshot ${name}`);
@@ -36,6 +40,7 @@ function createSnapshotStore(directory, config, objectCatalog) {
   fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
   const primary = path.join(directory, FILE);
   const backup = `${primary}.bak`;
+  const resetMarker = `${primary}.reset`;
   const configHash = signature(config);
   let primaryValid = true;
 
@@ -56,6 +61,19 @@ function createSnapshotStore(directory, config, objectCatalog) {
   }
 
   function load() {
+    // A reset marker wins over both older snapshots. If the process stopped
+    // between the two replacements, finish the reset before exposing a world.
+    if (fs.existsSync(resetMarker)) {
+      let state;
+      try { state = decode(resetMarker); }
+      catch (error) { throw new Error(`Pending world reset is corrupt: ${error.message}`); }
+      const document = fs.readFileSync(resetMarker, 'utf8');
+      writeAtomic(primary, document);
+      writeAtomic(backup, document);
+      fs.unlinkSync(resetMarker);
+      syncDirectory();
+      return state;
+    }
     const exists = fs.existsSync(primary);
     const hasBackup = fs.existsSync(backup);
     if (!exists && !hasBackup) return null;
@@ -72,10 +90,33 @@ function createSnapshotStore(directory, config, objectCatalog) {
     catch (error) { throw new Error(`Snapshot and backup are unusable: ${error.message}`); }
   }
 
-  function save(state) {
+  function syncDirectory() {
+    const dfd = fs.openSync(directory, 'r');
+    try { fs.fsyncSync(dfd); } finally { fs.closeSync(dfd); }
+  }
+
+  function writeAtomic(filename, document) {
+    const temp = path.join(directory, `.${path.basename(filename)}.${process.pid}.${crypto.randomUUID()}.tmp`);
+    try {
+      const fd = fs.openSync(temp, 'wx', 0o600);
+      try { fs.writeFileSync(fd, document); fs.fsyncSync(fd); }
+      finally { fs.closeSync(fd); }
+      fs.renameSync(temp, filename);
+      syncDirectory();
+    } finally {
+      if (fs.existsSync(temp)) fs.unlinkSync(temp);
+    }
+  }
+
+  function encode(state) {
     assertState(state);
     const checksum = crypto.createHash('sha256').update(JSON.stringify(state)).digest('hex');
-    const document = JSON.stringify({ version: VERSION, configHash, catalogHash: objectCatalog.hash, checksum, state });
+    return JSON.stringify({ version: VERSION, configHash, catalogHash: objectCatalog.hash, checksum, state });
+  }
+
+  function save(state) {
+    if (fs.existsSync(resetMarker)) throw new Error('Cannot save while a world reset is pending');
+    const document = encode(state);
     const temp = path.join(directory, `.${FILE}.${process.pid}.${crypto.randomUUID()}.tmp`);
     const backupTemp = `${temp}.bak`;
     try {
@@ -90,14 +131,25 @@ function createSnapshotStore(directory, config, objectCatalog) {
       }
       fs.renameSync(temp, primary);
       primaryValid = true;
-      const dfd = fs.openSync(directory, 'r');
-      try { fs.fsyncSync(dfd); } finally { fs.closeSync(dfd); }
+      syncDirectory();
     } finally {
       if (fs.existsSync(temp)) fs.unlinkSync(temp);
       if (fs.existsSync(backupTemp)) fs.unlinkSync(backupTemp);
     }
   }
-  return { load, save, primary, backup };
+
+  function reset(state) {
+    const document = encode(state);
+    // Persist the intended fresh world first. Until the marker is removed,
+    // startup always restores it, never an older backup.
+    writeAtomic(resetMarker, document);
+    writeAtomic(primary, document);
+    writeAtomic(backup, document);
+    fs.unlinkSync(resetMarker);
+    syncDirectory();
+    primaryValid = true;
+  }
+  return { load, save, reset, primary, backup, resetMarker };
 }
 
 module.exports = { createSnapshotStore };

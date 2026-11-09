@@ -35,13 +35,27 @@ test('production control routes require a valid bearer token', async () => {
     const detail = await (await fetch(base + `/api/agents/${agent.id}`)).json();
     assert.ok(Number.isFinite(detail.serverTime));
     assert.ok(Number.isFinite(detail.lastTickAt));
-    for (const route of ['/api/agents/a-1/path', '/api/sim/step']) {
+    for (const route of ['/api/agents/a-1/path', '/api/sim/step', '/api/admin/world/reset']) {
       const denied = await fetch(base + route, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
       assert.equal(denied.status, 401);
       const accepted = await fetch(base + route, { method: 'POST', headers: { authorization: 'Bearer test-only-control-secret', 'content-type': 'application/json' }, body: '{}' });
       assert.notEqual(accepted.status, 401);
       assert.notEqual(accepted.status, 500);
     }
+    const beforeReset = await (await fetch(base + '/api/simulation/status')).json();
+    const stale = await fetch(base + '/api/admin/world/reset', {
+      method: 'POST', headers: { authorization: 'Bearer test-only-control-secret', 'content-type': 'application/json' },
+      body: JSON.stringify({ confirmation: 'RESET WORLD', worldId: 'stale' }),
+    });
+    assert.equal(stale.status, 409);
+    const reset = await fetch(base + '/api/admin/world/reset', {
+      method: 'POST', headers: { authorization: 'Bearer test-only-control-secret', 'content-type': 'application/json' },
+      body: JSON.stringify({ confirmation: 'RESET WORLD', worldId: beforeReset.worldId }),
+    });
+    assert.equal(reset.status, 200);
+    const resetResult = await reset.json();
+    assert.equal(resetResult.current.tickCount, 0);
+    assert.notEqual(resetResult.current.worldId, beforeReset.worldId);
     const oversized = await fetch(base + '/api/world/chunks', {
       method: 'POST', headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ chunks: Array.from({ length: 9 }, (_, cx) => ({ cx, cy: 0 })) }),
