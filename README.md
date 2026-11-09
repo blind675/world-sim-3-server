@@ -97,6 +97,7 @@ docker-compose up -d
 
 ### Entities
 - `GET /api/entities/in-view` - Objects in viewport
+- `GET /api/entities/:id` - Object detail; food includes current stock and regrowth status
 - `GET /api/object-definitions` - Versioned, read-only object catalogue
 - `GET /api/agents` - All agents
 - `GET /api/agents/:id` - Agent details

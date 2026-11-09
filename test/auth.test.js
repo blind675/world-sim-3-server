@@ -25,6 +25,27 @@ test('production control routes require a valid bearer token', async () => {
     const objects = await (await fetch(base + '/api/entities/in-view?x=0&y=0&w=64&h=64&types=tree,rock,food')).json();
     assert.ok(objects.objects.length > 0);
     assert.ok(objects.objects.every(object => catalogue.definitions.some(def => def.id === object.definitionId && def.behavior === object.type)));
+    let food = objects.objects.find(object => object.type === 'food');
+    for (let cy = 0; cy < 8 && !food; cy++) {
+      for (let cx = 0; cx < 8 && !food; cx++) {
+        food = getWorld().objects.getObjectsInChunk(cx, cy).find(object => object.type === 'food');
+      }
+    }
+    assert.ok(food, 'test world has a food node');
+    const foodUrl = base + `/api/entities/${food.id}`;
+    const initialFood = await (await fetch(foodUrl)).json();
+    assert.equal(initialFood.food.stock, initialFood.food.capacity);
+    assert.equal(initialFood.food.depleted, false);
+    const ordinary = objects.objects.find(object => object.type !== 'food');
+    assert.ok(ordinary, 'test world has a non-food object');
+    const ordinaryDetail = await (await fetch(base + `/api/entities/${ordinary.id}`)).json();
+    assert.equal(ordinaryDetail.definitionId, ordinary.definitionId);
+    assert.equal(ordinaryDetail.food, undefined);
+    for (let i = 0; i < initialFood.food.capacity; i++) getWorld().objects.consumeFood(food.id, 0);
+    const depletedFood = await (await fetch(foodUrl)).json();
+    assert.equal(depletedFood.food.stock, 0);
+    assert.equal(depletedFood.food.depleted, true);
+    assert.ok(depletedFood.food.ticksUntilRegrow > 0);
     const list = await (await fetch(base + '/api/agents')).json();
     const agent = list.agents[0];
     assert.equal(agent.type, 'agent');
