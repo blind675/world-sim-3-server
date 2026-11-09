@@ -18,6 +18,7 @@ Agreed in discussion:
 - One generic agent archetype spawns deterministically from the configured world seed. Agents have a small fixed trait set, memory, paths, and inventory fields, but no birth or aging loop.
 - Memory stores observed entities and clusters with confidence decay and a capacity limit. Water sources, food, trees, and rocks can form clusters; capacity eviction currently favors confidence alone.
 - Terrain is deterministic, wrapped, and generated on demand. Snapshots persist mutable state and pin the object catalogue. Changes to behavior definitions or agent templates will need the same compatibility discipline.
+- The object catalogue already has categories, colors, sprites, relative variety weights, preferred ground types, and optional elevation ranges. These preferences choose a variety at positions created by a fixed spawn strategy; they do not yet change the number of objects or define a new placement algorithm. There are no object ages or per-instance lifespans.
 
 ## Vocabulary and decision flow
 
@@ -62,6 +63,16 @@ A browser editor may eventually inspect definitions and export validated drafts,
 
 **Memory:** Keep *confidence* (is the information still accurate?) separate from *importance* (is it useful to retain?). Terrain water is stable and can decay slowly; food availability changes, so a high-value food memory can still become stale. At capacity, retain entries by a bounded utility score informed by relevance, confidence, distance, and recency. Deduplicate nearby water or food memories so one resource patch does not fill the whole memory.
 
+## Object variety, habitats, and lifecycles
+
+Add varieties only when they give the viewer a clearer habitat or give agents a meaningful choice. Candidates include mushrooms or nuts as distinct food, reeds and shrubs near water, and fallen wood in forests. Start by using the existing five behavior/spawn strategies for visual varieties; a new resource yield or interaction requires backend behavior, not only a JSON entry. Distinguish **category** (food, material, etc.), **behavior** (what an agent can do with it), and **habitat** (where it can appear).
+
+Preferred ground type and elevation are already available. A later habitat model could add distance to water, shade, temperature, and minimum spacing, together with a local density or carrying-capacity rule. These factors should affect deterministic candidate placement, not just the appearance selected after placement. Define constraints and fallbacks so a narrowly specified variety does not silently disappear from most worlds.
+
+Lifespan belongs to an **instance**, not merely its catalogue definition. Keep living source and consumable product separate: a berry bush may live for years and regrow stock while picked berries rot quickly. Trees may age, die, and become fallen wood; rocks should generally remain static unless geological change adds useful behavior. Evaporation is better modeled as a water/temperature rule than as the expiry of thousands of water objects. Rest spots are planned for removal, so they need no lifecycle.
+
+Because terrain and static objects are generated lazily, a lifecycle must not depend on whether a viewer opened a chunk. A first design can use deterministic birth ticks plus sparse persisted overrides or scheduled events for changed instances. Avoid scanning the entire 5120 × 5120 world every tick. Record enough state and random-generator progress in snapshots for the same object to have the same fate after restart. Pin any new catalogue fields to the snapshot and plan migration or a deliberate new-world reset before changing a deployed catalogue.
+
 ## Time, light, and temperature
 
 Derive time of day from `tickCount` and a configured ticks-per-day value. Light level can reduce effective vision range at night. A diurnal/nocturnal trait changes preferred active and sleep periods, but urgent thirst or danger can interrupt sleep. Temperature can combine a day/night curve with terrain or elevation later. Introduce one measured effect at a time, such as extra energy expenditure in cold, so we can tell why survival changes. Weather is a separate future layer, not a prerequisite for a day/night cycle.
@@ -78,10 +89,11 @@ Inventory and world interaction should follow stable resource and action rules. 
 
 1. **Measure the current survival loop.** Pick a simulated day length, run several fixed seeds for many ticks, and record lifespan, death causes, water discovery, travel distance, idle time, and snapshot size. This gives a baseline for every later change.
 2. **Make basic survival credible.** Terrain-based water, rest anywhere, reachable-resource checks, and memory retention. Keep existing viewer APIs compatible or plan their transition explicitly.
-3. **Introduce a small behavior scheduler.** Define one-tick action semantics, interrupt/resume state, bounded JSON definitions, and the first idle/look-around/explore behaviors. Verify deterministic replay after snapshot restore.
-4. **Add day/night, then temperature.** Calibrate each effect separately against the survival baseline.
-5. **Add agent templates, aging, and reproduction.** Validate inheritance, mutation bounds, and population stability across multiple seeds. Add the editor after the template and behavior formats settle.
-6. **Add one inventory interaction.** Expand only after it produces a useful observable decision.
+3. **Expand object variety and prove one lifecycle.** Add a few habitat-specific varieties with existing strategies, then prototype one perishable or aging resource. Measure density, update cost, and snapshot growth before generalizing.
+4. **Introduce a small behavior scheduler.** Define one-tick action semantics, interrupt/resume state, bounded JSON definitions, and the first idle/look-around/explore behaviors. Verify deterministic replay after snapshot restore.
+5. **Add day/night, then temperature.** Calibrate each effect separately against the survival baseline.
+6. **Add agent templates, aging, and reproduction.** Validate inheritance, mutation bounds, and population stability across multiple seeds. Add the editor after the template and behavior formats settle.
+7. **Add one inventory interaction.** Expand only after it produces a useful observable decision.
 
 Acceptance should be behavioral, not just structural: agents can reliably locate reachable water, rest without a marker, show interpretable choices in the viewer, and continue the same behavior after a restart. For mortal populations, measure extinction and birth rates over many seeds and simulated days rather than requiring that no individual ever dies. Watch CPU, memory, and snapshot growth on the single cloud instance.
 
@@ -93,3 +105,4 @@ Acceptance should be behavioral, not just structural: agents can reliably locate
 4. Should behavior definitions describe only simple sequences while complex seeking remains named backend algorithms, or should the data format eventually express both?
 5. What survival target should we use for the first balancing pass: median lifespan, percentage reaching water, or population survival over a chosen number of days?
 6. When a new catalogue or template changes snapshot compatibility, should the default workflow be an explicit fresh-world reset or a migration preserving the current population?
+7. Should the first object lifecycle model a consumable that rots, a food plant that ages, or a tree that dies and becomes fallen wood?
