@@ -120,6 +120,7 @@ Object instances retain their existing `type` and stable id, and now expose a `d
 - `npm start` - Production server
 - `npm test` - World generation regression tests
 - `npm run bench` - Small terrain chunk benchmark
+- `npm run baseline -- --output /tmp/survival.json` - Offline, fixed-seed survival benchmark (defaults to three seeds, 2,500 ticks, and the configured agent count). Use `--seeds 7,8`, `--ticks 500`, `--agents 10`, `--checkpoint-every 100`, and `--output path.json` to adjust a run. It does not start the server, tick timer, or write to the production snapshot volume. See [the baseline report](docs/baselines/README.md) for metric definitions and results.
 
 ### Testing
 ```bash

@@ -9,7 +9,8 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "test": "node --test test/*.test.js",
-    "bench": "node test-optimization.js"
+    "bench": "node test-optimization.js",
+    "baseline": "node scripts/survival-baseline.js"
   },
   "dependencies": {
     "compression": "^1.8.1",
