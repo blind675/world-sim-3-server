@@ -7,9 +7,15 @@ const crypto = require('node:crypto');
 const VERSION = 1;
 const FILE = 'world.json';
 
-function signature(config) {
+function signature(config, { historic = false } = {}) {
   const { terrainCacheMaxChunks, ...durableConfig } = config;
-  return crypto.createHash('sha256').update(JSON.stringify(durableConfig)).digest('hex');
+  // Tick duration only determines wall-clock pace. It does not change the
+  // world produced by a given sequence of simulation ticks.
+  const signedConfig = historic ? durableConfig : {
+    ...durableConfig,
+    simulation: Object.fromEntries(Object.entries(config.simulation).filter(([key]) => key !== 'tickMs')),
+  };
+  return crypto.createHash('sha256').update(JSON.stringify(signedConfig)).digest('hex');
 }
 
 function assertState(state) {
@@ -36,19 +42,32 @@ function assertState(state) {
   }
 }
 
-function createSnapshotStore(directory, config, objectCatalog, { legacyConfig = null } = {}) {
+function createSnapshotStore(directory, config, objectCatalog, { legacyConfig = null, previousTickMs = null } = {}) {
   fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
   const primary = path.join(directory, FILE);
   const backup = `${primary}.bak`;
   const resetMarker = `${primary}.reset`;
   const configHash = signature(config);
+  const historicHashes = new Set();
+  for (const candidate of [config, legacyConfig].filter(Boolean)) {
+    // Existing snapshots signed the entire config, including tickMs. Accept
+    // the former 10-second default and an explicitly supplied prior interval
+    // only when every other setting is an exact match.
+    for (const tickMs of [candidate.simulation.tickMs, 10000, previousTickMs].filter(Number.isSafeInteger)) {
+      historicHashes.add(signature({ ...candidate,
+        simulation: { ...candidate.simulation, tickMs } }, { historic: true }));
+    }
+  }
   const legacyHash = legacyConfig ? signature(legacyConfig) : null;
   let primaryValid = true;
 
   function decode(filename) {
     const document = JSON.parse(fs.readFileSync(filename, 'utf8'));
     if (document.version !== VERSION) throw new Error(`Snapshot version ${document.version} is incompatible with version ${VERSION}`);
-    if (document.configHash !== configHash && document.configHash !== legacyHash) {
+    const matchingHash = document.configHashVersion === 2
+      ? (document.configHash === configHash || document.configHash === legacyHash)
+      : document.configHashVersion === undefined && historicHashes.has(document.configHash);
+    if (!matchingHash) {
       throw new Error('Snapshot world seed/configuration mismatch');
     }
     if (document.catalogHash !== undefined && document.catalogHash !== objectCatalog.hash) {
@@ -114,7 +133,8 @@ function createSnapshotStore(directory, config, objectCatalog, { legacyConfig = 
   function encode(state) {
     assertState(state);
     const checksum = crypto.createHash('sha256').update(JSON.stringify(state)).digest('hex');
-    return JSON.stringify({ version: VERSION, configHash, catalogHash: objectCatalog.hash, checksum, state });
+    return JSON.stringify({ version: VERSION, configHashVersion: 2, configHash,
+      catalogHash: objectCatalog.hash, checksum, state });
   }
 
   function save(state) {

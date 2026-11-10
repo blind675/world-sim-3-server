@@ -18,6 +18,12 @@ function createWorld({ config = buildConfig(), legacyConfig, snapshotDir = proce
   if (process.env.NODE_ENV === 'production' && !snapshotDir) throw new Error('SNAPSHOT_DIR is required in production');
   const interval = Number(process.env.SNAPSHOT_INTERVAL_TICKS || 6);
   if (!Number.isSafeInteger(interval) || interval < 1) throw new Error('SNAPSHOT_INTERVAL_TICKS must be a positive integer');
+  const previousTickMs = process.env.SNAPSHOT_PREVIOUS_TICK_MS === undefined
+    ? null : Number(process.env.SNAPSHOT_PREVIOUS_TICK_MS);
+  if (previousTickMs !== null && (!Number.isSafeInteger(previousTickMs)
+    || previousTickMs < 1 || previousTickMs > 3600000)) {
+    throw new Error('SNAPSHOT_PREVIOUS_TICK_MS must be between 1 and 3600000');
+  }
   const objectCatalog = loadObjectCatalog(objectCatalogPath);
   // Only the known pre-clock default configuration may migrate automatically.
   // Custom configurations require an explicit, exact legacy config; unrelated
@@ -25,7 +31,7 @@ function createWorld({ config = buildConfig(), legacyConfig, snapshotDir = proce
   const compatibleLegacy = legacyConfig ?? (JSON.stringify(config) === JSON.stringify(buildConfig())
     ? buildConfig({ legacy: true }) : null);
   const snapshotStore = snapshotDir ? createSnapshotStore(snapshotDir, config, objectCatalog,
-    { legacyConfig: compatibleLegacy }) : null;
+    { legacyConfig: compatibleLegacy, previousTickMs }) : null;
   const saved = resetSnapshot ? null : snapshotStore?.load();
   const terrain = createTerrain(config);
 

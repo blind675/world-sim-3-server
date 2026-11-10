@@ -42,7 +42,7 @@ npm run dev
 
 ## Configuration
 
-Production requires `SNAPSHOT_DIR` on a persistent volume and `CONTROL_API_TOKEN` in the server's secret environment. The public frontend remains a viewer; never put this token in `NEXT_PUBLIC_*`. A snapshot is written every `SNAPSHOT_INTERVAL_TICKS` ticks (default 6, or about 60 seconds with the default tick interval) and on SIGTERM/SIGINT. An abrupt crash can lose at most that interval of simulation progress. Restarts reject incompatible snapshots and fail if neither the current snapshot nor its backup is valid.
+Production requires `SNAPSHOT_DIR` on a persistent volume and `CONTROL_API_TOKEN` in the server's secret environment. The public frontend remains a viewer; never put this token in `NEXT_PUBLIC_*`. A snapshot is written every `SNAPSHOT_INTERVAL_TICKS` ticks (default 6, or about 120 seconds at the production 20-second tick interval) and on SIGTERM/SIGINT. An abrupt crash can lose at most that interval of simulation progress. Restarts reject incompatible snapshots and fail if neither the current snapshot nor its backup is valid.
 
 All configuration via environment variables. See `.env.example` for complete list.
 
@@ -51,7 +51,7 @@ All configuration via environment variables. See `.env.example` for complete lis
 - `WORLD_WIDTH=5120` - World width in meters
 - `WORLD_HEIGHT=5120` - World height in meters
 - `TERRAIN_CACHE_MAX_CHUNKS=256` - Maximum terrain chunks retained in memory
-- `SIM_TICK_MS=10000` - Default simulation tick interval
+- `SIM_TICK_MS=10000` locally, `20000` in production - Wall-clock interval between simulation ticks. With 360 ticks/day, a production day lasts two real hours. This changes viewing pace and processing headroom, not needs or distance per simulated day. Existing snapshots can be restored at a different interval.
 - `SIM_TICKS_PER_DAY=360` - Four simulated minutes per tick; one simulated day takes one real hour at the default interval
 - `MOVE_CELLS_PER_STEP=32` - Maximum path cells traversed per two ticks while walking (up to 5.76 km per day if moving continuously on 1 m cells)
 
@@ -83,7 +83,7 @@ docker-compose up -d
 ### Production Considerations
 - Use `NODE_ENV=production`
 - Keep a persistent volume mounted at `SNAPSHOT_DIR` and configure `CONTROL_API_TOKEN`
-- Start with the default 10-second tick and a 512 MiB memory limit; measure before tuning
+- Start with the default 20-second production tick and a 512 MiB memory limit; measure before tuning
 
 ## API Endpoints
 

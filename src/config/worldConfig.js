@@ -33,7 +33,8 @@ function buildConfig({ legacy = false } = {}) {
       seaLevel: num('TERRAIN_SEA_LEVEL', 0),
     },
     simulation: {
-      tickMs: int('SIM_TICK_MS', 10000),
+      // Production runs at a watchable pace; local development stays faster.
+      tickMs: int('SIM_TICK_MS', process.env.NODE_ENV === 'production' ? 20000 : 10000),
       ...(!legacy && { ticksPerDay }),
     },
     agents: {
@@ -119,6 +120,9 @@ function buildConfig({ legacy = false } = {}) {
     },
   };
   if (!legacy) {
+    if (cfg.simulation.tickMs < 100 || cfg.simulation.tickMs > 3600000) {
+      throw new Error('SIM_TICK_MS must be between 100 and 3600000');
+    }
     if (cfg.simulation.ticksPerDay < 1 || cfg.simulation.ticksPerDay > 1440) {
       throw new Error('SIM_TICKS_PER_DAY must be between 1 and 1440');
     }
