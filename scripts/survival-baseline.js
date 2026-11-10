@@ -10,7 +10,7 @@ const { buildConfig } = require('../src/config/worldConfig');
 const { createWorld } = require('../src/world/world');
 const { createSnapshotStore } = require('../src/world/snapshot');
 
-const REPORT_VERSION = 1;
+const REPORT_VERSION = 2;
 
 function parseArgs(argv) {
   const options = { seeds: [20260420, 20260421, 20260422], ticks: 2500, agents: null,
@@ -84,8 +84,9 @@ function runSeed(baseConfig, options, seed) {
     world = createWorld({ config, snapshotDir: null, autoStart: false });
     const snapshotStore = createSnapshotStore(temporaryDir, config, world.objectCatalog);
     const agents = new Map(world.agents.listAll().map(agent => [agent.id, {
-      firstWaterSeenTick: null, firstDrinkTick: null, drinkTicks: 0,
+      firstWaterSeenTick: null, firstDrinkTick: null, drinkTicks: 0, fruitHydrationTicks: 0,
       travelCells: 0, idleTicks: 0, movingTicks: 0, waitingTicks: 0,
+      travelCellsByDay: [],
       lifetimeTicks: null, deathCause: null,
     }]));
     const tickMs = [];
@@ -109,7 +110,8 @@ function runSeed(baseConfig, options, seed) {
     const wallStart = performance.now();
     for (let tick = 1; tick <= options.ticks; tick++) {
       const before = new Map(world.agents.listAll().map(agent => [agent.id, {
-        x: agent.x, y: agent.y, thirst: agent.thirst,
+        x: agent.x, y: agent.y, thirst: agent.thirst, state: agent.state,
+        path: agent.path, pathIndex: agent.pathIndex,
       }]));
       const start = performance.now();
       world.simulation.tick();
@@ -120,12 +122,17 @@ function runSeed(baseConfig, options, seed) {
         const previous = before.get(agent.id);
         const metrics = agents.get(agent.id);
         if (previous) {
-          const distance = wrappedTravel(previous, agent, config);
+          const distance = previous.path === agent.path && agent.pathIndex > previous.pathIndex
+            ? agent.pathIndex - previous.pathIndex : wrappedTravel(previous, agent, config);
           metrics.travelCells += distance;
+          const dayIndex = Math.floor((tick - 1) / (config.simulation.ticksPerDay || 360));
+          metrics.travelCellsByDay[dayIndex] = (metrics.travelCellsByDay[dayIndex] || 0) + distance;
           if (distance) metrics.movingTicks++;
           if (agent.thirst < previous.thirst) {
-            metrics.drinkTicks++;
-            if (metrics.firstDrinkTick === null) metrics.firstDrinkTick = tick;
+            if (previous.state === 'drinking') {
+              metrics.drinkTicks++;
+              if (metrics.firstDrinkTick === null) metrics.firstDrinkTick = tick;
+            } else if (previous.state === 'eating') metrics.fruitHydrationTicks++;
           }
         }
         if (agent.state === 'idle') metrics.idleTicks++;
@@ -160,6 +167,8 @@ function runSeed(baseConfig, options, seed) {
     const died = values.filter(a => a.lifetimeTicks !== null);
     const lifespans = died.map(a => a.lifetimeTicks).sort((a, b) => a - b);
     const sum = field => values.reduce((total, a) => total + a[field], 0);
+    const travelCellsByDay = Array.from({ length: Math.ceil(ticksRun / (config.simulation.ticksPerDay || 360)) },
+      (_, day) => values.reduce((total, a) => total + (a.travelCellsByDay[day] || 0), 0));
     return {
       seed, initialAgents: agents.size, ticksRun, survivingAgents: world.agents.listAll().length,
       firstExtinctionTick, deathsByCause,
@@ -170,7 +179,8 @@ function runSeed(baseConfig, options, seed) {
       lifespanTicks: { medianOfDead: percentile(lifespans, 0.5), maxOfDead: lifespans.at(-1) ?? null },
       activity: { travelCells: sum('travelCells'), idleAgentTicks: sum('idleTicks'),
         movingAgentTicks: sum('movingTicks'), waitingAgentTicks: sum('waitingTicks'),
-        drinkAgentTicks: sum('drinkTicks') },
+        drinkAgentTicks: sum('drinkTicks'), fruitHydrationAgentTicks: sum('fruitHydrationTicks'),
+        travelCellsByDay },
       performance: { wallMs: +wallMs.toFixed(2), cpuMs: +(cpu.user / 1000 + cpu.system / 1000).toFixed(2),
         tickP50Ms: +percentile(tickMs, 0.5).toFixed(2),
         tickP95Ms: +percentile(tickMs, 0.95).toFixed(2),

@@ -16,8 +16,9 @@ function num(name, fallback) {
   return Number.isFinite(n) ? n : fallback;
 }
 
-function buildConfig() {
+function buildConfig({ legacy = false } = {}) {
   const coneDeg = num('VISION_CONE_DEG', 100);
+  const ticksPerDay = int('SIM_TICKS_PER_DAY', 360);
   const cfg = {
     seed: int('WORLD_SEED', 20260420),
     width: int('WORLD_WIDTH', 5120),
@@ -33,22 +34,24 @@ function buildConfig() {
     },
     simulation: {
       tickMs: int('SIM_TICK_MS', 10000),
+      ...(!legacy && { ticksPerDay }),
     },
     agents: {
       count: int('AGENT_COUNT', 50),
       // Water shallower than this is still walkable (shallow_water/mud);
       // anything deeper (or the deep_water ground type) is impassable.
       deepWaterThreshold: num('DEEP_WATER_THRESHOLD', 1.2),
+      ...(!legacy && { moveCellsPerStep: int('MOVE_CELLS_PER_STEP', 32) }),
     },
     survival: {
       // Needs decay per tick (0->1 scale, 1 = critical/death).
-      hungerDecayRate: num('HUNGER_DECAY_RATE', 0.0003),
-      thirstDecayRate: num('THIRST_DECAY_RATE', 0.0005),
-      tirednessDecayRate: num('TIREDNESS_DECAY_RATE', 0.0002),
+      hungerDecayRate: num('HUNGER_DECAY_RATE', legacy ? 0.0003 : 1 / (ticksPerDay * 7)),
+      thirstDecayRate: num('THIRST_DECAY_RATE', legacy ? 0.0005 : 1 / (ticksPerDay * 3)),
+      tirednessDecayRate: num('TIREDNESS_DECAY_RATE', legacy ? 0.0002 : 1 / (ticksPerDay * 2)),
       // Thresholds above which a need becomes actionable (priority picker).
-      hungerThreshold: num('HUNGER_THRESHOLD', 0.45),
-      thirstThreshold: num('THIRST_THRESHOLD', 0.40),
-      tirednessThreshold: num('TIREDNESS_THRESHOLD', 0.50),
+      hungerThreshold: num('HUNGER_THRESHOLD', legacy ? 0.45 : 0.2),
+      thirstThreshold: num('THIRST_THRESHOLD', legacy ? 0.40 : 0.15),
+      tirednessThreshold: num('TIREDNESS_THRESHOLD', legacy ? 0.50 : 0.35),
       // Timed action parameters — how long eat/drink/rest lasts and per-tick
       // restoration amount. Default 8 ticks * 0.05 = 0.40 refill per visit.
       actionTicks: int('ACTION_TICKS', 8),
@@ -66,6 +69,13 @@ function buildConfig() {
       foodDensityMax: int('FOOD_DENSITY_MAX', 4),
       // Stock per food node before depletion (number of completed eat actions).
       foodStock: int('FOOD_STOCK', 3),
+      ...(!legacy && {
+        drinkActionTicks: int('DRINK_ACTION_TICKS', 4),
+        drinkRestoreRate: num('DRINK_RESTORE_RATE', 0.15),
+        restActionTicks: int('REST_ACTION_TICKS', 120),
+        restRestoreRate: num('REST_RESTORE_RATE', 0.004),
+        fruitHydration: num('FRUIT_HYDRATION', 0.2),
+      }),
     },
     perception: {
       // Full cone aperture in degrees (default 100°). Half-angle used for
@@ -108,6 +118,23 @@ function buildConfig() {
       preferredAltitudeMax: num('PREFERRED_ALTITUDE_MAX', 30),
     },
   };
+  if (!legacy) {
+    if (cfg.simulation.ticksPerDay < 1 || cfg.simulation.ticksPerDay > 1440) {
+      throw new Error('SIM_TICKS_PER_DAY must be between 1 and 1440');
+    }
+    if (cfg.agents.moveCellsPerStep < 1 || cfg.agents.moveCellsPerStep > 64) {
+      throw new Error('MOVE_CELLS_PER_STEP must be between 1 and 64');
+    }
+    for (const [name, value] of [
+      ['DRINK_ACTION_TICKS', cfg.survival.drinkActionTicks],
+      ['REST_ACTION_TICKS', cfg.survival.restActionTicks],
+    ]) {
+      if (value < 1 || value > 1440) throw new Error(`${name} must be between 1 and 1440`);
+    }
+    if (cfg.survival.fruitHydration < 0 || cfg.survival.fruitHydration > 1) {
+      throw new Error('FRUIT_HYDRATION must be between 0 and 1');
+    }
+  }
   return Object.freeze({
     ...cfg,
     terrain: Object.freeze(cfg.terrain),

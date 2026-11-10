@@ -19,6 +19,11 @@ function createTerrain(config) {
 
   // Initialize terrain cache
   const cache = new TerrainCache(config);
+  // Pathfinding and shoreline vision repeatedly inspect nearby individual
+  // cells. Keep a bounded cache separate from the chunk cache used by viewers.
+  const cellCache = new Map();
+  const cellCacheLimit = 65536;
+  const waterDepthCache = new Map();
 
   // Independent noise layers for octaves and derivations.
   const base = createPerlin4D(seed ^ 0x9e3779b1);
@@ -153,12 +158,47 @@ function createTerrain(config) {
   });
 
   function waterDepthAt(x, y, h) {
-    const height = (h === undefined) ? heightAt(x, y) : h;
-    const d = seaLevel - height;
-    return d > 0 ? d : 0;
+    let key;
+    if (Number.isInteger(x) && Number.isInteger(y)) {
+      x = ((x % width) + width) % width;
+      y = ((y % height) + height) % height;
+      key = y * width + x;
+      if (h === undefined) {
+        const cached = waterDepthCache.get(key);
+        if (cached !== undefined) return cached;
+      }
+    }
+    const heightValue = (h === undefined) ? heightAt(x, y) : h;
+    const d = seaLevel - heightValue;
+    const depth = d > 0 ? d : 0;
+    if (key !== undefined) {
+      waterDepthCache.set(key, depth);
+      if (waterDepthCache.size > cellCacheLimit) waterDepthCache.delete(waterDepthCache.keys().next().value);
+    }
+    return depth;
   }
 
   function cellAt(x, y) {
+    if (Number.isInteger(x) && Number.isInteger(y)) {
+      const wx = ((x % width) + width) % width;
+      const wy = ((y % height) + height) % height;
+      const key = wy * width + wx;
+      const cached = cellCache.get(key);
+      if (cached) {
+        cellCache.delete(key);
+        cellCache.set(key, cached);
+        return cached;
+      }
+      x = wx;
+      y = wy;
+      const h = heightAt(x, y);
+      const g = groundTypeAt(x, y, h);
+      const cell = { height: h, groundType: g, waterDepth: waterDepthAt(x, y, h),
+        baseMoveCost: MOVE_COST[g], blocksVision: VISION_BLOCK[g] };
+      cellCache.set(key, cell);
+      if (cellCache.size > cellCacheLimit) cellCache.delete(cellCache.keys().next().value);
+      return cell;
+    }
     const h = heightAt(x, y);
     const g = groundTypeAt(x, y, h);
     return {

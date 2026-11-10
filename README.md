@@ -52,16 +52,19 @@ All configuration via environment variables. See `.env.example` for complete lis
 - `WORLD_HEIGHT=5120` - World height in meters
 - `TERRAIN_CACHE_MAX_CHUNKS=256` - Maximum terrain chunks retained in memory
 - `SIM_TICK_MS=10000` - Default simulation tick interval
+- `SIM_TICKS_PER_DAY=360` - Four simulated minutes per tick; one simulated day takes one real hour at the default interval
+- `MOVE_CELLS_PER_STEP=32` - Maximum path cells traversed per two ticks while walking (up to 5.76 km per day if moving continuously on 1 m cells)
 
 ### Perception (Milestone 4)
 - `VISION_CONE_DEG=100` - Vision cone aperture
 - `VISION_NEAR_RADIUS=4` - Near-field vision radius
 - `MEMORY_DECAY_FLOOR=0.02` - Memory eviction threshold
 
-### Survival (Milestone 5)
-- `HUNGER_DECAY_RATE=0.0003` - Hunger increase per tick
-- `THIRST_DECAY_RATE=0.0005` - Thirst increase per tick
-- `TIREDNESS_DECAY_RATE=0.0002` - Tiredness increase per tick
+### Survival (cassowary-inspired baseline)
+- Hunger reaches its lethal limit after seven simulated days without food; thirst after three days without water. Agents start seeking both much earlier.
+- Tiredness rises over two days but is not directly lethal. Agents can rest on any walkable cell; a future day/night milestone will add a preferred sleep schedule.
+- Agents can drink while standing in shallow water or on walkable terrain adjacent to water. Generated water-source and rest-spot objects remain visible for compatibility but are no longer required for survival.
+- A completed fruit meal also reduces thirst by 0.2 by default; this does not count as drinking in the survival baseline. Tune with `FRUIT_HYDRATION` only after comparing fixed seeds.
 
 ## Docker Deployment
 

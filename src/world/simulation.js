@@ -5,6 +5,10 @@ const { findPath } = require('./pathfinding');
 const { updateAgentMemory } = require('./memory');
 const { splitmix32 } = require('../utils/prng');
 const { wrappedDistance } = require('../utils/wrap');
+const { clockAt } = require('./clock');
+const { canDrinkAt } = require('./water');
+const { isCellPathable } = require('./agents');
+const { wrap } = require('../utils/wrap');
 const {
   decayNeeds,
   tickAction,
@@ -118,6 +122,9 @@ function createSimulation(world, onTick = () => {}) {
   function pickGoal(agent) {
     const urgent = pickUrgentNeed(agent, config);
     if (urgent) {
+      if (urgent.need === 'tiredness') {
+        return { type: 'seek_rest', targetX: agent.x, targetY: agent.y };
+      }
       const memType = NEED_TO_MEMORY_TYPE[urgent.need];
       const mem = pickMemoryTargetForType(agent, memType);
       if (mem) {
@@ -126,7 +133,7 @@ function createSimulation(world, onTick = () => {}) {
         const nearbyAgents = calculateAgentDensity(mem.x, mem.y, densityRadius);
 
         // If area is too crowded (>5 agents), look for alternative or wander
-        if (nearbyAgents > 5) {
+        if (urgent.need === 'hunger' && nearbyAgents > 5) {
           // Try to find alternative memory of same type
           const altMem = pickAlternativeMemoryTarget(agent, memType, mem.id);
           if (altMem) {
@@ -136,10 +143,12 @@ function createSimulation(world, onTick = () => {}) {
               targetY: altMem.y,
               memoryId: altMem.id,
               memoryConfidence: altMem.confidence,
+              guided: wrappedDistance(agent.x, agent.y, altMem.x, altMem.y,
+                config.width, config.height) > 40,
             };
           }
           // No alternative found - wander away from crowded area
-          return pickWanderGoal(agent, 40, 80, urgent.goal);
+          return { type: urgent.goal, explore: true };
         }
 
         return {
@@ -148,28 +157,57 @@ function createSimulation(world, onTick = () => {}) {
           targetY: mem.y,
           memoryId: mem.id,
           memoryConfidence: mem.confidence,
+          guided: wrappedDistance(agent.x, agent.y, mem.x, mem.y,
+            config.width, config.height) > 40,
         };
       }
       // No memory of a suitable resource — wander far to explore and
       // hopefully stumble into one. Pick a wider random hop.
-      return pickWanderGoal(agent, 40, 80, urgent.goal);
+      return { type: urgent.goal, explore: true };
     }
 
     if (rng() < WANDER_GOAL_PROB) {
-      return pickWanderGoal(agent, 20, 50, 'wander');
+      return { type: 'wander', explore: true };
     }
     return null;
   }
 
-  function pickWanderGoal(agent, minDist, maxDist, type) {
-    const span = Math.max(1, maxDist - minDist);
-    const dist = minDist + Math.floor(rng() * span);
-    const angle = rng() * Math.PI * 2;
-    let tx = Math.floor(agent.x + Math.cos(angle) * dist);
-    let ty = Math.floor(agent.y + Math.sin(angle) * dist);
-    tx = ((tx % config.width) + config.width) % config.width;
-    ty = ((ty % config.height) + config.height) % config.height;
-    return { type, targetX: tx, targetY: ty };
+  function planExplorePath(agent, seekingWater, target = null) {
+    const path = [];
+    const recent = new Set([`${agent.x}:${agent.y}`]);
+    let x = agent.x;
+    let y = agent.y;
+    let direction = [Math.round(Math.cos(agent.facing)), Math.round(Math.sin(agent.facing))];
+    for (let step = 0; step < 160; step++) {
+      const current = world.terrain.cellAt(x, y);
+      const choices = [];
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = wrap(x + dx, config.width);
+        const ny = wrap(y + dy, config.height);
+        const next = world.terrain.cellAt(nx, ny);
+        if (!isCellPathable(next, config.agents.deepWaterThreshold)) continue;
+        const key = `${nx}:${ny}`;
+        const towardTarget = target && wrappedDistance(nx, ny, target.x, target.y,
+          config.width, config.height) < wrappedDistance(x, y, target.x, target.y,
+          config.width, config.height);
+        const weight = (recent.has(key) ? 0.2 : 4)
+          + (direction[0] === dx && direction[1] === dy ? 60 : 0)
+          + (seekingWater ? Math.max(0, current.height - next.height) * 10 : 0)
+          + (towardTarget ? 70 : 0);
+        choices.push({ x: nx, y: ny, dx, dy, weight, key });
+      }
+      if (!choices.length) break;
+      let roll = rng() * choices.reduce((total, choice) => total + choice.weight, 0);
+      const chosen = choices.find(choice => (roll -= choice.weight) <= 0) || choices.at(-1);
+      x = chosen.x;
+      y = chosen.y;
+      direction = [chosen.dx, chosen.dy];
+      path.push({ x, y });
+      recent.add(chosen.key);
+      if (recent.size > 64) recent.delete(recent.values().next().value);
+      if (seekingWater && canDrinkAt(world.terrain, config, x, y)) break;
+    }
+    return path;
   }
 
   function updateAgent(agent, world, currentTick) {
@@ -189,13 +227,28 @@ function createSimulation(world, onTick = () => {}) {
       || agent.state === 'drinking'
       || agent.state === 'resting'
     ) {
-      tickAction(agent, objects, config, currentTick);
-
-      return;
+      if (agent.state === 'resting' && (agent.thirst >= 0.8 || agent.hunger >= 0.8)) {
+        agent.state = 'idle';
+        agent.currentAction = null;
+        agent.currentGoal = null;
+        agent.actionTicksRemaining = 0;
+      } else {
+        tickAction(agent, objects, config, currentTick, world.terrain);
+        return;
+      }
     }
 
     // 3b. If the agent is waiting, check if they can now use the resource
     if (agent.state === 'waiting') {
+      if (agent.currentGoal && (agent.currentGoal.type === 'seek_water'
+        || agent.currentGoal.type === 'seek_rest')) {
+        objects.removeAgentFromResources(agent.id);
+        agent.state = 'idle';
+        agent.currentAction = null;
+        agent.actionTargetId = null;
+        agent.currentGoal = null;
+        return;
+      }
       const target = agent.actionTargetId && objects.getById(agent.actionTargetId);
       const actionState = agent.currentGoal && GOAL_TO_ACTION[agent.currentGoal.type];
       const valid = target && actionState
@@ -221,12 +274,15 @@ function createSimulation(world, onTick = () => {}) {
       agents.stepAgent(agent, currentTick);
       const arrived = agent.pathIndex >= agent.path.length;
       if (arrived) {
-        if (beginActionIfArrived(agent, objects, config, currentTick)) {
+        if (beginActionIfArrived(agent, objects, config, currentTick, world.terrain)) {
           return; // Action started; ready to tick next turn.
         }
         // Arrived but no matching object (e.g. memory was stale or food
         // got depleted before we got here). Clear the goal so idle logic
         // can pick a fresh one next tick.
+        if (agent.currentGoal?.memoryId && !agent.currentGoal.guided) {
+          agent.memory = agent.memory.filter(m => m.id !== agent.currentGoal.memoryId);
+        }
         agent.currentGoal = null;
       }
       return;
@@ -236,17 +292,31 @@ function createSimulation(world, onTick = () => {}) {
     const goal = pickGoal(agent);
     if (!goal) return;
 
-    const path = findPath(
-      world,
-      { x: agent.x, y: agent.y },
-      { x: goal.targetX, y: goal.targetY },
-      { excludeAgentId: agent.id }
-    );
+    if (goal.type === 'seek_rest' || goal.type === 'seek_food'
+      || (goal.type === 'seek_water'
+        && canDrinkAt(world.terrain, config, agent.x, agent.y))) {
+      agent.currentGoal = goal;
+      if (beginActionIfArrived(agent, objects, config, currentTick, world.terrain)) return;
+    }
+
+    const path = goal.explore || goal.guided ? planExplorePath(agent, goal.type === 'seek_water',
+      goal.guided ? { x: goal.targetX, y: goal.targetY } : null)
+      : findPath(
+        world,
+        { x: agent.x, y: agent.y },
+        { x: goal.targetX, y: goal.targetY },
+        { excludeAgentId: agent.id, maxNodes: 5000 }
+      );
     if (path && path.length > 0) {
+      if (goal.explore) {
+        goal.targetX = path.at(-1).x;
+        goal.targetY = path.at(-1).y;
+      }
       agent.currentGoal = goal;
       agents.setPath(agent, path);
     } else {
       // Pathfinding failed — stay idle, don't latch a goal we can't reach.
+      if (goal.memoryId) agent.memory = agent.memory.filter(m => m.id !== goal.memoryId);
       agent.currentGoal = null;
       agent.currentAction = null;
     }
@@ -274,6 +344,7 @@ function createSimulation(world, onTick = () => {}) {
     return {
       tickCount,
       tickMs,
+      clock: clockAt(tickCount, simConfig.ticksPerDay || 360),
       lastTickAt,
       agentCount: agents.listAll().length,
       deathCount,

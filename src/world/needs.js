@@ -8,6 +8,7 @@
 // marked dead (simulation removes it in the same tick).
 
 const { wrappedDistance } = require('../utils/wrap');
+const { canDrinkAt } = require('./water');
 
 // Maps the goal/action types to the need they satisfy so tickAction can
 // stay data-driven.
@@ -31,14 +32,14 @@ const ACTION_TO_OBJECT_TYPE = Object.freeze({
   resting: 'rest_spot',
 });
 
-// Mutates the agent: advances hunger/thirst/tiredness by one tick and
-// clamps to [0, 1]. Sets agent.dead=true if any need reached 1.0.
+// Tiredness is a nonlethal deficit. Missing a night can impair an agent,
+// but starvation or dehydration are the direct survival failures.
 function decayNeeds(agent, config) {
   const s = config.survival;
   agent.hunger = Math.min(1, agent.hunger + s.hungerDecayRate);
   agent.thirst = Math.min(1, agent.thirst + s.thirstDecayRate);
   agent.tiredness = Math.min(1, agent.tiredness + s.tirednessDecayRate);
-  if (agent.hunger >= 1 || agent.thirst >= 1 || agent.tiredness >= 1) {
+  if (agent.hunger >= 1 || agent.thirst >= 1) {
     agent.dead = true;
   }
 }
@@ -98,32 +99,38 @@ function pickMemoryTargetForType(agent, memoryType) {
 // Decrements the matching need by actionRestoreRate. Ends the action when
 // the duration elapses OR the need hits 0 OR the target becomes invalid.
 // Returns true if the action ended this tick.
-function tickAction(agent, objects, config, currentTick) {
+function tickAction(agent, objects, config, currentTick, terrain = null) {
   const need = ACTION_TO_NEED[agent.state];
   if (!need) return false;
 
   const s = config.survival;
   const { width, height } = config;
 
-  // Validate the target still exists and is adjacent.
+  // Rest is possible on any walkable cell. Drinking uses adjacent terrain
+  // water, including shallow water under the agent's own feet.
   const target = agent.actionTargetId ? objects.getById(agent.actionTargetId) : null;
-  const targetOk = target
+  const targetOk = agent.state === 'resting' ? true
+    : agent.state === 'drinking' && terrain ? canDrinkAt(terrain, config, agent.x, agent.y)
+    : target
     && wrappedDistance(agent.x, agent.y, target.x, target.y, width, height) <= 1.5
     // Food can become depleted mid-action (another agent consumed the last
     // stock) — treat that as an interrupt.
     && (target.type !== 'food' || objects.isAvailable(target.id, currentTick));
   if (!targetOk) {
-    endAction(agent, objects, false, currentTick);
+    endAction(agent, objects, false, currentTick, s);
     return true;
   }
 
   // Apply restoration this tick.
-  agent[need] = Math.max(0, agent[need] - s.actionRestoreRate);
+  const restoreRate = agent.state === 'resting' ? (s.restRestoreRate || s.actionRestoreRate)
+    : agent.state === 'drinking' ? (s.drinkRestoreRate || s.actionRestoreRate)
+      : s.actionRestoreRate;
+  agent[need] = Math.max(0, agent[need] - restoreRate);
   agent.actionTicksRemaining = Math.max(0, agent.actionTicksRemaining - 1);
 
   // Completion: either duration elapsed or need fully restored.
   if (agent.actionTicksRemaining <= 0 || agent[need] <= 0) {
-    endAction(agent, objects, true, currentTick);
+    endAction(agent, objects, true, currentTick, s);
     return true;
   }
   return false;
@@ -131,10 +138,11 @@ function tickAction(agent, objects, config, currentTick) {
 
 // Clean up agent action state and apply depletion to food nodes when a
 // visit completes successfully.
-function endAction(agent, objects, completed, currentTick) {
+function endAction(agent, objects, completed, currentTick, survival) {
   if (completed && agent.state === 'eating' && agent.actionTargetId) {
     // A successful eat consumes one stock; depleted if that was the last.
     objects.consumeFood(agent.actionTargetId, currentTick);
+    agent.thirst = Math.max(0, agent.thirst - (survival.fruitHydration || 0));
   }
   if (agent.actionTargetId) objects.releaseResource(agent.id, agent.actionTargetId);
   agent.state = 'idle';
@@ -147,11 +155,23 @@ function endAction(agent, objects, completed, currentTick) {
 // Start an action now that the agent has arrived at the goal location.
 // Looks up the nearest valid object of the required type within 1 cell
 // (accounting for wrap) and binds it as actionTargetId.
-function beginActionIfArrived(agent, objects, config, currentTick) {
+function beginActionIfArrived(agent, objects, config, currentTick, terrain = null) {
   const goal = agent.currentGoal;
   if (!goal) return false;
   const actionState = GOAL_TO_ACTION[goal.type];
   if (!actionState) return false;
+
+  if (actionState === 'resting' || (actionState === 'drinking' && terrain)) {
+    if (actionState === 'drinking' && !canDrinkAt(terrain, config, agent.x, agent.y)) return false;
+    objects.removeAgentFromResources(agent.id);
+    agent.state = actionState;
+    agent.currentAction = actionState;
+    agent.actionTargetId = null;
+    agent.actionTicksRemaining = actionState === 'resting'
+      ? (config.survival.restActionTicks || config.survival.actionTicks)
+      : (config.survival.drinkActionTicks || config.survival.actionTicks);
+    return true;
+  }
 
   const requiredType = ACTION_TO_OBJECT_TYPE[actionState];
   const { width, height } = config;

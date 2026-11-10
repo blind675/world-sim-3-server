@@ -34,6 +34,7 @@ router.get('/meta', (req, res) => {
     },
     simulation: {
       tickMs: config.simulation.tickMs,
+      ticksPerDay: config.simulation.ticksPerDay || 360,
     },
     perception: {
       coneDeg: config.perception.coneDeg,

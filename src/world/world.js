@@ -14,12 +14,18 @@ const { loadObjectCatalog } = require('./objectCatalog');
 
 let singleton = null;
 
-function createWorld({ config = buildConfig(), snapshotDir = process.env.SNAPSHOT_DIR, objectCatalogPath, autoStart = true, resetSnapshot = false } = {}) {
+function createWorld({ config = buildConfig(), legacyConfig, snapshotDir = process.env.SNAPSHOT_DIR, objectCatalogPath, autoStart = true, resetSnapshot = false } = {}) {
   if (process.env.NODE_ENV === 'production' && !snapshotDir) throw new Error('SNAPSHOT_DIR is required in production');
   const interval = Number(process.env.SNAPSHOT_INTERVAL_TICKS || 6);
   if (!Number.isSafeInteger(interval) || interval < 1) throw new Error('SNAPSHOT_INTERVAL_TICKS must be a positive integer');
   const objectCatalog = loadObjectCatalog(objectCatalogPath);
-  const snapshotStore = snapshotDir ? createSnapshotStore(snapshotDir, config, objectCatalog) : null;
+  // Only the known pre-clock default configuration may migrate automatically.
+  // Custom configurations require an explicit, exact legacy config; unrelated
+  // seeds/settings continue to fail closed.
+  const compatibleLegacy = legacyConfig ?? (JSON.stringify(config) === JSON.stringify(buildConfig())
+    ? buildConfig({ legacy: true }) : null);
+  const snapshotStore = snapshotDir ? createSnapshotStore(snapshotDir, config, objectCatalog,
+    { legacyConfig: compatibleLegacy }) : null;
   const saved = resetSnapshot ? null : snapshotStore?.load();
   const terrain = createTerrain(config);
 
@@ -51,6 +57,17 @@ function createWorld({ config = buildConfig(), snapshotDir = process.env.SNAPSHO
     agents.restore(saved.agents);
     objects.restore(saved.objects);
     for (const agent of agents.listAll()) {
+      // Old water-source memories point to generated markers. Relearn
+      // reachable terrain banks instead of repeatedly seeking a marker.
+      agent.memory = agent.memory.filter(m => m.type !== 'water_source'
+        || (typeof m.id === 'string' && m.id.startsWith('shore:')));
+      if ((agent.state === 'resting' || agent.state === 'drinking') && agent.actionTargetId) {
+        objects.removeAgentFromResources(agent.id);
+        agent.actionTargetId = null;
+        agent.actionTicksRemaining = agent.state === 'resting'
+          ? (config.survival.restActionTicks || config.survival.actionTicks)
+          : (config.survival.drinkActionTicks || config.survival.actionTicks);
+      }
       if (agent.actionTargetId && !objects.ensureById(agent.actionTargetId)) {
         throw new Error(`Snapshot references missing action target ${agent.actionTargetId}`);
       }
