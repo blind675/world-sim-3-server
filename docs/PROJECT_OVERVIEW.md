@@ -19,6 +19,7 @@ Current ideas for the next simulation phase are collected in a [discussion draft
 - Viewport and chunk APIs serve only requested map data. Resource statistics report coverage of generated chunks.
 - The frontend reads `NEXT_PUBLIC_BACKEND_URL` and polls the backend for updates.
 - Versioned object definitions live in a JSON catalogue. Existing object ids and placement stay stable while validated definitions select variants, colours, sprites, and vision blocking. Snapshots pin the catalogue hash.
+- The emerging ground-bird simulation uses 360 ticks per simulated day. Agents traverse bounded walking path segments, remember reachable terrain shorelines, drink from adjacent terrain water, and rest on walkable ground. Day/night preferences and climate remain later milestones; see the roadmap and fixed-seed baseline reports for measured survival.
 
 ## Run locally
 

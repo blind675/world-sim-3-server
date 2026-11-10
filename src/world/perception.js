@@ -13,6 +13,7 @@
 // always produce the same output. No Math.random / Date.now usage.
 
 const { wrap } = require('../utils/wrap');
+const { shoreCandidates } = require('./water');
 
 // Object types that block line-of-sight when they sit on an intermediate
 // cell between the observer and the target. Trees + rocks are opaque.
@@ -146,8 +147,12 @@ function createPerception(world) {
     // Objects of all types (trees, rocks, food, water_source, rest_spot).
     const objs = objects.queryRect(bboxX, bboxY, bboxW, bboxH, null);
     for (const o of objs) {
+      // Generated source markers remain visible to viewers, but agents now
+      // remember accessible terrain shorelines instead.
+      if (o.type === 'water_source') continue;
       out.push({ id: o.id, type: o.type, x: o.x, y: o.y });
     }
+    out.push(...shoreCandidates(terrain, config, agent, agent.traits.visionRange));
 
     // Other agents via the chunk index. Filter self out.
     const chunks = chunkIndex.chunksInRect(bboxX, bboxY, bboxW, bboxH);

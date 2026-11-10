@@ -27,7 +27,9 @@ const { wrappedDistance, shortestDelta, wrap } = require('../utils/wrap');
 // become "outcrops", food becomes "berry patches", and water sources
 // become "springs". Agents are intentionally excluded (they move, which
 // would staleize clusters immediately).
-const CLUSTER_TYPES = new Set(['tree', 'rock', 'food', 'water_source']);
+// Shoreline memories remain individual: a cluster centroid could land in
+// deep water or on an inaccessible bank.
+const CLUSTER_TYPES = new Set(['tree', 'rock', 'food']);
 
 // Each agent needs cluster IDs that are unique at least within its own
 // memory; a module-level counter is sufficient because cluster IDs only

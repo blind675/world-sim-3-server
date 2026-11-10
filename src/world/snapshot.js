@@ -36,18 +36,21 @@ function assertState(state) {
   }
 }
 
-function createSnapshotStore(directory, config, objectCatalog) {
+function createSnapshotStore(directory, config, objectCatalog, { legacyConfig = null } = {}) {
   fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
   const primary = path.join(directory, FILE);
   const backup = `${primary}.bak`;
   const resetMarker = `${primary}.reset`;
   const configHash = signature(config);
+  const legacyHash = legacyConfig ? signature(legacyConfig) : null;
   let primaryValid = true;
 
   function decode(filename) {
     const document = JSON.parse(fs.readFileSync(filename, 'utf8'));
     if (document.version !== VERSION) throw new Error(`Snapshot version ${document.version} is incompatible with version ${VERSION}`);
-    if (document.configHash !== configHash) throw new Error('Snapshot world seed/configuration mismatch');
+    if (document.configHash !== configHash && document.configHash !== legacyHash) {
+      throw new Error('Snapshot world seed/configuration mismatch');
+    }
     if (document.catalogHash !== undefined && document.catalogHash !== objectCatalog.hash) {
       throw new Error('Snapshot object catalogue mismatch; restore the pinned catalogue or start a new world');
     }

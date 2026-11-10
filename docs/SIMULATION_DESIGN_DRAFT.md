@@ -10,6 +10,7 @@ Agreed in discussion:
 
 - Individual agents remain mortal. Reproduction, rather than immortality or automatic respawning, is the intended long-term population mechanism.
 - Diurnal agents tend to sleep at night; nocturnal agents tend to sleep during the day.
+- The first calibrated agent is a fictional fruit-eating, flightless ground bird inspired by the cassowary. One day is 360 ticks; on an active day walking should cover roughly 2–5 km at the current one-metre cell scale. Sleep timing, night vision, and climate follow in separate later milestones.
 
 ## Current baseline to preserve or deliberately replace
 

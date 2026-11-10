@@ -3,9 +3,8 @@
 // In-memory agent store for Milestone 3.
 //
 // Agents are spawned deterministically from the world seed at startup (no
-// runtime respawn yet). Each agent keeps an A* path; callers advance them
-// via stepAgent() which consumes one path cell per call. Chunk-index bookkeeping
-// is updated whenever an agent crosses a chunk boundary.
+// runtime respawn yet). Each agent keeps an A* path and traverses a bounded
+// segment of it every two ticks. Chunk indexes hold the segment endpoint.
 
 const { splitmix32 } = require('../utils/prng');
 const { wrap } = require('../utils/wrap');
@@ -39,9 +38,11 @@ function createAgentStore(config, terrain, chunkIndex) {
   const { width, height, chunkSize, seed, agents: agentCfg } = config;
   const deepWaterThreshold = agentCfg.deepWaterThreshold;
   const desiredCount = agentCfg.count;
+  const moveCellsPerStep = agentCfg.moveCellsPerStep || 1;
 
   const byId = new Map();
   const all = []; // preserves spawn order
+
 
   function spawnInitial() {
     const rng = splitmix32((seed ^ 0xa11ce0de) >>> 0);
@@ -94,7 +95,7 @@ function createAgentStore(config, terrain, chunkIndex) {
         id,
         x,
         y,
-        facing: 0,
+        facing: Math.floor(rng() * 4) * (Math.PI / 2),
         sex: rng() < 0.5 ? 'female' : 'male',
         age: 0,
         state: 'idle',
@@ -120,6 +121,7 @@ function createAgentStore(config, terrain, chunkIndex) {
         movementStartTick: null,
         targetPos: null,
         currentMovementStep: 0,
+        movementTargetIndex: null,
         _cx: cx,
         _cy: cy,
       };
@@ -161,6 +163,7 @@ function createAgentStore(config, terrain, chunkIndex) {
       movementStartTick: a.movementStartTick,
       currentTick: currentTick,
       moveSpeed: a.traits.moveSpeed,
+      moveCellsPerStep,
       isMoving: a.state === 'moving' && a.movementStartPos !== null,
     };
   }
@@ -191,6 +194,7 @@ function createAgentStore(config, terrain, chunkIndex) {
     all.length = 0;
     for (const data of saved) {
       const agent = structuredClone(data);
+      agent.movementTargetIndex ??= null;
       agent._cx = Math.floor(agent.x / chunkSize);
       agent._cy = Math.floor(agent.y / chunkSize);
       byId.set(agent.id, agent);
@@ -202,6 +206,10 @@ function createAgentStore(config, terrain, chunkIndex) {
   function setPath(agent, path) {
     agent.path = path || [];
     agent.pathIndex = 0;
+    agent.movementStartPos = null;
+    agent.movementStartTick = null;
+    agent.targetPos = null;
+    agent.movementTargetIndex = null;
     if (agent.path.length > 0) {
       agent.state = 'moving';
       agent.currentAction = 'move_to_target';
@@ -211,7 +219,8 @@ function createAgentStore(config, terrain, chunkIndex) {
     }
   }
 
-  // Advance agent one cell along its stored path. Returns true if the agent moved.
+  // Start or complete one bounded path segment. The start tick exposes its
+  // path to viewers; the following tick commits the segment endpoint.
   function stepAgent(agent, currentTick) {
     if (agent.pathIndex >= agent.path.length) {
       if (agent.state === 'moving') {
@@ -222,10 +231,14 @@ function createAgentStore(config, terrain, chunkIndex) {
       agent.movementStartPos = null;
       agent.targetPos = null;
       agent.currentMovementStep = 0;
+      agent.movementTargetIndex = null;
       return false;
     }
 
-    const next = agent.path[agent.pathIndex];
+    const targetIndex = agent.movementStartPos
+      ? (agent.movementTargetIndex ?? agent.pathIndex)
+      : Math.min(agent.path.length - 1, agent.pathIndex + moveCellsPerStep - 1);
+    const next = agent.path[targetIndex];
     const nx = wrap(next.x, width);
     const ny = wrap(next.y, height);
 
@@ -234,6 +247,7 @@ function createAgentStore(config, terrain, chunkIndex) {
       agent.movementStartPos = { x: agent.x, y: agent.y };
       agent.movementStartTick = currentTick;
       agent.targetPos = { x: nx, y: ny };
+      agent.movementTargetIndex = targetIndex;
       agent.currentMovementStep = 0;
       agent.state = 'moving'; // Set state to moving
 
@@ -253,7 +267,7 @@ function createAgentStore(config, terrain, chunkIndex) {
     // Movement already in progress - complete it now
     agent.x = nx;
     agent.y = ny;
-    agent.pathIndex++;
+    agent.pathIndex = targetIndex + 1;
     agent.currentMovementStep = 1; // Movement completed for this step
 
     const ncx = Math.floor(nx / chunkSize);
@@ -275,12 +289,14 @@ function createAgentStore(config, terrain, chunkIndex) {
       agent.targetPos = null;
       agent.movementStartTick = null;
       agent.currentMovementStep = 0;
+      agent.movementTargetIndex = null;
     } else {
       // Clear movement data for this step but prepare for next step
       agent.movementStartPos = null;
       agent.targetPos = null;
       agent.movementStartTick = null;
       agent.currentMovementStep = 0;
+      agent.movementTargetIndex = null;
     }
 
     // Keep movement tracking data for interpolation - will be updated on next step
