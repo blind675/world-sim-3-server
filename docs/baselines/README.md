@@ -1,4 +1,8 @@
-# Survival baseline, version 1
+# Survival baselines
+
+The [milestone 3 report](survival-m3.md) measures the new 360-tick day, ground-bird movement, terrain-water drinking, and rest-anywhere behavior. The remainder of this page preserves the version 1 reference taken before those changes.
+
+## Version 1 reference
 
 This report measures the current survival loop before milestone 3 changes it. The checked-in [JSON report](survival-v1.json) comes from:
 
