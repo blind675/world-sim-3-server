@@ -70,8 +70,9 @@ function createSimulation(world, onTick = () => {}) {
     lastTickAt = Date.now();
     tickCount++;
 
-    // World-level timers (food regrowth + periodic spread) run once per
+    // World-level timers (food expiry, regrowth, spread) run once per
     // tick regardless of agent state.
+    objects.tickFoodLifecycle(tickCount);
     objects.tickRegrowth(tickCount);
     objects.tickFoodSpread(tickCount);
 

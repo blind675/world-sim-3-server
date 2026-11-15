@@ -114,11 +114,11 @@ router.get('/in-view', (req, res, next) => {
 // GET /api/entities/:id — detail endpoint for inspection.
 router.get('/:id', (req, res, next) => {
   try {
-    const { objects, simulation, config } = getWorld();
+    const { objects, simulation } = getWorld();
     const obj = objects.getById(req.params.id);
     if (!obj) return res.status(404).json({ error: 'not_found' });
     const food = obj.type === 'food'
-      ? { ...objects.getFoodState(obj.id, simulation.getStatus().tickCount), capacity: config.survival.foodStock }
+      ? objects.getFoodState(obj.id, simulation.getStatus().tickCount)
       : undefined;
     res.set('Cache-Control', 'no-store');
     res.json({ ...obj, food });

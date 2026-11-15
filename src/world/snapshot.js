@@ -40,6 +40,16 @@ function assertState(state) {
       || !Array.isArray(a.path) || !Array.isArray(a.memory) || !a.traits) throw new Error('Invalid snapshot agent');
     ids.add(a.id);
   }
+  const foodIds = new Set();
+  for (const node of state.objects.dynamicFood) {
+    if (!node || !/^fd-\d+$/.test(node.id || '') || foodIds.has(node.id)
+      || !integer(node.x) || !integer(node.y) || !integer(node.cx) || !integer(node.cy)
+      || (node.expiresAt !== undefined && (!integer(node.expiresAt)
+        || node.expiresAt <= state.simulation.tickCount))) {
+      throw new Error('Invalid snapshot dynamic food');
+    }
+    foodIds.add(node.id);
+  }
 }
 
 function createSnapshotStore(directory, config, objectCatalog, { legacyConfig = null, previousTickMs = null } = {}) {
@@ -70,7 +80,8 @@ function createSnapshotStore(directory, config, objectCatalog, { legacyConfig = 
     if (!matchingHash) {
       throw new Error('Snapshot world seed/configuration mismatch');
     }
-    if (document.catalogHash !== undefined && document.catalogHash !== objectCatalog.hash) {
+    if (document.catalogHash !== undefined && document.catalogHash !== objectCatalog.hash
+      && document.catalogHash !== objectCatalog.upgradeFromHash) {
       throw new Error('Snapshot object catalogue mismatch; restore the pinned catalogue or start a new world');
     }
     if (document.catalogHash === undefined && !objectCatalog.legacyCompatible) {

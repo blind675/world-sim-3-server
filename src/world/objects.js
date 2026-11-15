@@ -1,8 +1,8 @@
 'use strict';
 
-// Deterministic static object store for Phase 2.
+// Deterministic static object store with sparse mutable food.
 //
-// Objects (trees, rocks) are generated lazily per chunk from a seeded PRNG.
+// Static objects are generated lazily per chunk from a seeded PRNG.
 // Same world seed + same chunk coords always produce the same objects, so
 // no persistence is needed. Generation registers object ids with the chunk
 // index on first access and caches the result.
@@ -121,6 +121,12 @@ function hashChunk(seed, cx, cy) {
   return h >>> 0;
 }
 
+function hashId(id) {
+  let h = 2166136261;
+  for (const char of id) h = Math.imul(h ^ char.charCodeAt(0), 16777619) >>> 0;
+  return h;
+}
+
 function createObjectStore(config, terrain, chunkIndex, objectCatalog = loadObjectCatalog()) {
   const { seed, chunkSize, width, height } = config;
   const survival = config.survival;
@@ -131,7 +137,7 @@ function createObjectStore(config, terrain, chunkIndex, objectCatalog = loadObje
   const byId = new Map();
   const generatedCounts = { foodNodes: 0, waterSources: 0, restSpots: 0, totalObjects: 0 };
 
-  // --- Food depletion + dynamic nodes (M5) ---
+  // --- Food depletion + dynamic nodes ---
   // food id -> remaining stock. Missing entries are treated as full stock.
   const foodStock = new Map();
   // food id -> tick at which it regrows (back to full stock). Only set
@@ -139,8 +145,11 @@ function createObjectStore(config, terrain, chunkIndex, objectCatalog = loadObje
   const regrowsAt = new Map();
   // dynamic food nodes (spawned by spreading) — stored separately from
   // the static per-chunk map so they don't pollute the seed-based cache.
-  // key: dynamicId -> { id, type:'food', x, y, cx, cy }
+  // key: dynamicId -> { id, type:'food', x, y, cx, cy, expiresAt? }
   const dynamicFood = new Map();
+  // Only perishable dynamic offspring have expiry ticks. No world-wide scan
+  // is needed: scheduled ids are indexed by the tick on which they rot.
+  const foodExpiry = new Map();
   // dynamic ids are keyed by a monotonic counter.
   let dynamicCounter = 0;
   // RNG for dynamic spread decisions — seeded from world seed so runs are
@@ -305,6 +314,21 @@ function createObjectStore(config, terrain, chunkIndex, objectCatalog = loadObje
       objects.push(makeObject(`rs-${cx}-${cy}-${i}`, 'rest_spot', x, y, cell));
     }
 
+    // Independent habitat passes add genuinely new positions without
+    // consuming the legacy candidate PRNG streams or changing old ids.
+    for (const definition of objectCatalog.habitatDefinitions) {
+      const rngH = splitmix32(hashChunk(seed ^ hashId(definition.id), cx, cy));
+      for (let i = 0; i < definition.spawn.candidatesPerChunk; i++) {
+        const x = baseX + Math.floor(rngH() * chunkSize);
+        const y = baseY + Math.floor(rngH() * chunkSize);
+        const cell = terrain.cellAt(x, y);
+        if (cell.groundType === 'deep_water' || cell.waterDepth > config.agents.deepWaterThreshold
+          || !objectCatalog.matchesSpawn(definition, cell)) continue;
+        objects.push({ id: `h-${definition.id}-${cx}-${cy}-${i}`, type: definition.behavior,
+          definitionId: definition.id, x, y });
+      }
+    }
+
     // Register with chunk index + id map.
     for (const obj of objects) {
       byId.set(obj.id, obj);
@@ -373,11 +397,51 @@ function createObjectStore(config, terrain, chunkIndex, objectCatalog = loadObje
   function ensureById(id) {
     if (byId.has(id)) return byId.get(id);
     const match = /^(?:f|w|rs)-(\d+)-(\d+)-\d+$/.exec(id || '');
-    if (match && Number(match[1]) < Math.floor(width / chunkSize)
-      && Number(match[2]) < Math.floor(height / chunkSize)) {
-      generateChunk(Number(match[1]), Number(match[2]));
+    const habitatMatch = /^h-([a-z][a-z0-9_]*)-(\d+)-(\d+)-(\d+)$/.exec(id || '');
+    const coords = match ? [match[1], match[2]] : habitatMatch ? [habitatMatch[2], habitatMatch[3]] : null;
+    if (coords && Number(coords[0]) < Math.floor(width / chunkSize)
+      && Number(coords[1]) < Math.floor(height / chunkSize)) {
+      generateChunk(Number(coords[0]), Number(coords[1]));
     }
     return byId.get(id) || null;
+  }
+
+  function isPerishable(id) {
+    return dynamicFood.has(id) && Number.isSafeInteger(dynamicFood.get(id).expiresAt);
+  }
+
+  function removeDynamicFood(id) {
+    const node = dynamicFood.get(id);
+    if (!node) return;
+    if (node.expiresAt !== undefined) {
+      const scheduled = foodExpiry.get(node.expiresAt);
+      scheduled?.delete(id);
+      if (scheduled?.size === 0) foodExpiry.delete(node.expiresAt);
+    }
+    dynamicFood.delete(id);
+    byId.delete(id);
+    chunkIndex.removeObjectId(node.cx, node.cy, id);
+    foodStock.delete(id);
+    regrowsAt.delete(id);
+    const waiting = resourceQueues.get(id) || [];
+    for (const agentId of waiting) agentWaitingFor.delete(agentId);
+    resourceQueues.delete(id);
+    resourceUsers.delete(id);
+    generatedCounts.foodNodes--;
+    generatedCounts.totalObjects--;
+  }
+
+  function scheduleExpiry(node) {
+    if (!Number.isSafeInteger(node.expiresAt)) return;
+    if (!foodExpiry.has(node.expiresAt)) foodExpiry.set(node.expiresAt, new Set());
+    foodExpiry.get(node.expiresAt).add(node.id);
+  }
+
+  function tickFoodLifecycle(tick) {
+    const due = foodExpiry.get(tick);
+    if (!due) return;
+    foodExpiry.delete(tick);
+    for (const id of due) removeDynamicFood(id);
   }
 
   // --- Food depletion helpers ---
@@ -396,6 +460,10 @@ function createObjectStore(config, terrain, chunkIndex, objectCatalog = loadObje
   function consumeFood(id, tick) {
     const obj = byId.get(id);
     if (!obj || obj.type !== 'food') return;
+    if (isPerishable(id)) {
+      removeDynamicFood(id);
+      return;
+    }
     const current = foodStock.has(id) ? foodStock.get(id) : survival.foodStock;
     const next = current - 1;
     if (next <= 0) {
@@ -423,7 +491,7 @@ function createObjectStore(config, terrain, chunkIndex, objectCatalog = loadObje
 
   // Spawn a new dynamic food node near (srcX, srcY). Returns the created
   // node or null if the attempt was rejected (off-terrain / density cap).
-  function trySpreadFood(srcX, srcY, tick) {
+  function trySpreadFood(srcX, srcY, tick, sourceDefinitionId = null) {
     const radius = survival.foodSpreadRadius;
     // Pick a random point inside a disc of the spread radius.
     const angle = spreadRng() * Math.PI * 2;
@@ -435,7 +503,12 @@ function createObjectStore(config, terrain, chunkIndex, objectCatalog = loadObje
     if (nx === srcX && ny === srcY) return null;
 
     const cell = terrain.cellAt(nx, ny);
-    if (!acceptFood(cell, config, spreadRng)) return null;
+    const sourceDefinition = sourceDefinitionId && objectCatalog.get(sourceDefinitionId);
+    const perishable = sourceDefinition?.lifecycle?.dynamicLifetimeTicks;
+    if (perishable ? (cell.groundType === 'deep_water'
+      || cell.waterDepth > config.agents.deepWaterThreshold
+      || !objectCatalog.matchesSpawn(sourceDefinition, cell))
+      : !acceptFood(cell, config, spreadRng)) return null;
 
     // Density cap — avoid piling new nodes onto crowded areas.
     if (countFoodWithinRadius(nx, ny, survival.foodDensityRadius, tick) >= survival.foodDensityMax) {
@@ -447,6 +520,11 @@ function createObjectStore(config, terrain, chunkIndex, objectCatalog = loadObje
     const cx = Math.floor(nx / chunkSize);
     const cy = Math.floor(ny / chunkSize);
     const node = { ...makeObject(id, 'food', nx, ny, cell), cx, cy };
+    if (perishable) {
+      node.definitionId = sourceDefinitionId;
+      node.expiresAt = tick + perishable;
+      scheduleExpiry(node);
+    }
     dynamicFood.set(id, node);
     byId.set(id, { id, type: 'food', definitionId: node.definitionId, x: nx, y: ny });
     chunkIndex.addObjectId(cx, cy, id);
@@ -467,7 +545,7 @@ function createObjectStore(config, terrain, chunkIndex, objectCatalog = loadObje
       regrowsAt.delete(id);
       foodStock.set(id, survival.foodStock);
       const src = byId.get(id);
-      if (src) trySpreadFood(src.x, src.y, tick);
+      if (src) trySpreadFood(src.x, src.y, tick, src.definitionId);
     }
   }
 
@@ -481,6 +559,7 @@ function createObjectStore(config, terrain, chunkIndex, objectCatalog = loadObje
 
     // New children become eligible on a later spread tick.
     for (const [id, obj] of [...dynamicFood]) {
+      if (isPerishable(id)) continue;
       if (!isAvailable(id, tick)) continue;
       if (spreadRng() >= survival.foodSpreadChance) continue;
       trySpreadFood(obj.x, obj.y, tick);
@@ -492,13 +571,17 @@ function createObjectStore(config, terrain, chunkIndex, objectCatalog = loadObje
     const obj = byId.get(id);
     if (!obj || obj.type !== 'food') return null;
     const depleted = regrowsAt.has(id);
+    const expiresAt = dynamicFood.get(id)?.expiresAt ?? null;
     return {
       id,
-      stock: foodStock.has(id) ? foodStock.get(id) : survival.foodStock,
+      stock: foodStock.has(id) ? foodStock.get(id) : (expiresAt ? 1 : survival.foodStock),
+      capacity: expiresAt ? 1 : survival.foodStock,
       depleted,
       regrowsAt: depleted ? regrowsAt.get(id) : null,
       ticksUntilRegrow: depleted ? Math.max(0, regrowsAt.get(id) - tick) : 0,
       dynamic: dynamicFood.has(id),
+      expiresAt,
+      ticksUntilExpiry: expiresAt === null ? null : Math.max(0, expiresAt - tick),
     };
   }
 
@@ -585,11 +668,13 @@ function createObjectStore(config, terrain, chunkIndex, objectCatalog = loadObje
       for (const [key, value] of entries) target.set(key, value);
     }
     dynamicFood.clear();
+    foodExpiry.clear();
     for (const node of state.dynamicFood) {
       // Snapshots created before the catalogue had no definitionId.
       const restored = { ...node, definitionId: node.definitionId || makeObject(node.id, 'food', node.x, node.y, terrain.cellAt(node.x, node.y)).definitionId };
       if (objectCatalog.get(restored.definitionId)?.behavior !== 'food') throw new Error(`Snapshot references invalid food definition ${restored.definitionId}`);
       dynamicFood.set(node.id, restored);
+      scheduleExpiry(restored);
       byId.set(node.id, { id: node.id, type: 'food', definitionId: restored.definitionId, x: node.x, y: node.y });
       chunkIndex.addObjectId(node.cx, node.cy, node.id);
       generatedCounts.foodNodes++;
@@ -611,6 +696,7 @@ function createObjectStore(config, terrain, chunkIndex, objectCatalog = loadObje
     ensureById,
     isAvailable,
     consumeFood,
+    tickFoodLifecycle,
     tickRegrowth,
     tickFoodSpread,
     getFoodState,

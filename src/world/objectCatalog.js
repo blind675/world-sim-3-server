@@ -14,6 +14,14 @@ const GROUND_TYPES = new Set([
   'tall_grass', 'forest_floor', 'ground',
 ]);
 const slug = /^[a-z][a-z0-9_]*$/;
+const HABITAT_CATALOG_HASH = '1c3fa70b95b884ee7d714fcd3e1f710fafb025a7a1706a0482efee75ffada4a8';
+
+function matchesSpawn(definition, cell) {
+  const { preferredGroundTypes, minHeight, maxHeight } = definition.spawn;
+  return (!preferredGroundTypes || preferredGroundTypes.includes(cell.groundType))
+    && (minHeight === undefined || cell.height >= minHeight)
+    && (maxHeight === undefined || cell.height <= maxHeight);
+}
 
 function validateObjectCatalog(document) {
   if (!document || document.schemaVersion !== 1 || !slug.test(document.id || '')
@@ -24,22 +32,38 @@ function validateObjectCatalog(document) {
   }
   const ids = new Set();
   for (const definition of document.definitions) {
-    const { id, name, category, behavior, color, sprite, blocksVision, spawn } = definition || {};
+    const { id, name, category, behavior, color, sprite, blocksVision, spawn, lifecycle } = definition || {};
     if (!slug.test(id || '') || ids.has(id)) throw new Error(`Invalid or duplicate object definition id: ${id}`);
     ids.add(id);
     if (typeof name !== 'string' || name.trim().length < 1 || name.length > 80
       || !slug.test(category || '') || !Object.hasOwn(STRATEGIES, behavior)
       || !/^#[0-9a-fA-F]{6}$/.test(color || '') || !slug.test(sprite || '')
       || typeof blocksVision !== 'boolean') throw new Error(`Invalid object definition: ${id}`);
-    if (!spawn || spawn.strategy !== STRATEGIES[behavior]
+    const habitat = spawn?.strategy === 'habitat';
+    if (!spawn || (spawn.strategy !== STRATEGIES[behavior]
+        && !(habitat && (behavior === 'tree' || behavior === 'food')))
       || !Number.isFinite(spawn.weight) || spawn.weight <= 0 || spawn.weight > 100
       || (spawn.preferredGroundTypes !== undefined && (!Array.isArray(spawn.preferredGroundTypes)
         || !spawn.preferredGroundTypes.every(type => GROUND_TYPES.has(type))))
       || (spawn.minHeight !== undefined && !Number.isFinite(spawn.minHeight))
       || (spawn.maxHeight !== undefined && !Number.isFinite(spawn.maxHeight))
-      || (spawn.minHeight !== undefined && spawn.maxHeight !== undefined && spawn.minHeight > spawn.maxHeight)) {
+      || (spawn.minHeight !== undefined && spawn.maxHeight !== undefined && spawn.minHeight > spawn.maxHeight)
+      || (habitat && (!Number.isSafeInteger(spawn.candidatesPerChunk)
+        || spawn.candidatesPerChunk < 1 || spawn.candidatesPerChunk > 64
+        || !spawn.preferredGroundTypes?.length))
+      || (!habitat && spawn.candidatesPerChunk !== undefined)) {
       throw new Error(`Invalid spawn settings for object definition: ${id}`);
     }
+    if (lifecycle !== undefined && (behavior !== 'food' || !habitat
+      || !lifecycle || !Number.isSafeInteger(lifecycle.dynamicLifetimeTicks)
+      || lifecycle.dynamicLifetimeTicks < 1 || lifecycle.dynamicLifetimeTicks > 1440
+      || Object.keys(lifecycle).length !== 1)) {
+      throw new Error(`Invalid lifecycle for object definition: ${id}`);
+    }
+  }
+  if (document.definitions.reduce((sum, def) => sum + (def.spawn.strategy === 'habitat'
+    ? def.spawn.candidatesPerChunk : 0), 0) > 256) {
+    throw new Error('Habitat placement exceeds 256 attempts per chunk');
   }
   // Every existing placement strategy needs an unconditional fallback. Its id
   // matches the legacy type, preserving all world object ids and behavior.
@@ -66,14 +90,12 @@ function loadObjectCatalog(filename = process.env.OBJECT_CATALOG_PATH || DEFAULT
   const hash = hashCatalog(document);
   const byId = new Map(document.definitions.map(def => [def.id, def]));
   const byBehavior = new Map(Object.keys(STRATEGIES).map(behavior => [behavior,
-    document.definitions.filter(def => def.behavior === behavior)]));
+    document.definitions.filter(def => def.behavior === behavior && def.spawn.strategy === STRATEGIES[behavior])]));
+  const habitatDefinitions = document.definitions.filter(def => def.spawn.strategy === 'habitat');
 
   function choose(behavior, objectId, cell, seed) {
     const eligible = byBehavior.get(behavior).filter(def => {
-      const { preferredGroundTypes, minHeight, maxHeight } = def.spawn;
-      return (!preferredGroundTypes || preferredGroundTypes.includes(cell.groundType))
-        && (minHeight === undefined || cell.height >= minHeight)
-        && (maxHeight === undefined || cell.height <= maxHeight);
+      return matchesSpawn(def, cell);
     });
     // Independent of the placement PRNG: adding a visual variant never moves
     // or renumbers existing objects.
@@ -89,7 +111,11 @@ function loadObjectCatalog(filename = process.env.OBJECT_CATALOG_PATH || DEFAULT
   }
 
   return {
-    ...document, hash, legacyCompatible: hash === LEGACY_UPGRADE_HASH,
+    ...document, hash,
+    legacyCompatible: hash === LEGACY_UPGRADE_HASH || hash === HABITAT_CATALOG_HASH,
+    upgradeFromHash: hash === HABITAT_CATALOG_HASH ? LEGACY_UPGRADE_HASH : null,
+    habitatDefinitions,
+    matchesSpawn,
     get: id => byId.get(id) || null,
     choose,
     publicView: () => ({ ...document, hash }),

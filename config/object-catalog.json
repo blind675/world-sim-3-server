@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "core",
-  "revision": 1,
+  "revision": 2,
   "definitions": [
     {
       "id": "tree", "name": "Broadleaf tree", "category": "material", "behavior": "tree",
@@ -32,6 +32,25 @@
       "id": "blueberry_bush", "name": "Blueberry bush", "category": "food", "behavior": "food",
       "color": "#4274c9", "sprite": "blueberry_bush", "blocksVision": false,
       "spawn": { "strategy": "berry_patch", "weight": 0.5, "preferredGroundTypes": ["forest_floor", "tall_grass"] }
+    },
+    {
+      "id": "forest_mushroom", "name": "Forest mushroom patch", "category": "food", "behavior": "food",
+      "color": "#d7a774", "sprite": "forest_mushroom", "blocksVision": false,
+      "spawn": { "strategy": "habitat", "weight": 1, "candidatesPerChunk": 8,
+        "preferredGroundTypes": ["forest_floor"], "minHeight": 2, "maxHeight": 35 },
+      "lifecycle": { "dynamicLifetimeTicks": 360 }
+    },
+    {
+      "id": "shore_reeds", "name": "Shore reeds", "category": "material", "behavior": "tree",
+      "color": "#a0b76a", "sprite": "shore_reeds", "blocksVision": false,
+      "spawn": { "strategy": "habitat", "weight": 1, "candidatesPerChunk": 16,
+        "preferredGroundTypes": ["mud", "shallow_water"], "minHeight": -1.2, "maxHeight": 1 }
+    },
+    {
+      "id": "fallen_wood", "name": "Fallen wood", "category": "material", "behavior": "tree",
+      "color": "#98704d", "sprite": "fallen_wood", "blocksVision": false,
+      "spawn": { "strategy": "habitat", "weight": 1, "candidatesPerChunk": 6,
+        "preferredGroundTypes": ["forest_floor"], "minHeight": 5, "maxHeight": 60 }
     },
     {
       "id": "water_source", "name": "Drinking water", "category": "water", "behavior": "water_source",

@@ -1,0 +1,1199 @@
+{
+  "reportVersion": 2,
+  "method": "offline manual ticks; fresh world per seed; no API requests or production volume writes",
+  "limits": "Idle/waiting count post-tick states; RSS is sampled in one process across seeds, not a true per-world high-water mark. Timing varies by machine.",
+  "settings": {
+    "ticks": 2500,
+    "checkpointEvery": 500,
+    "worldConfig": {
+      "width": 5120,
+      "height": 5120,
+      "cellSize": 1,
+      "chunkSize": 64,
+      "terrainCacheMaxChunks": 256,
+      "wrapMode": "toroidal",
+      "terrain": {
+        "minHeight": -10,
+        "maxHeight": 80,
+        "seaLevel": 0
+      },
+      "simulation": {
+        "tickMs": 10000,
+        "ticksPerDay": 360
+      },
+      "agents": {
+        "count": 50,
+        "deepWaterThreshold": 1.2,
+        "moveCellsPerStep": 32
+      },
+      "survival": {
+        "hungerDecayRate": 0.0003968253968253968,
+        "thirstDecayRate": 0.000925925925925926,
+        "tirednessDecayRate": 0.001388888888888889,
+        "hungerThreshold": 0.2,
+        "thirstThreshold": 0.15,
+        "tirednessThreshold": 0.35,
+        "actionTicks": 8,
+        "actionRestoreRate": 0.05,
+        "foodRegrowTicks": 500,
+        "foodSpreadRadius": 15,
+        "foodSpreadChance": 0.02,
+        "foodSpreadInterval": 200,
+        "foodDensityRadius": 10,
+        "foodDensityMax": 4,
+        "foodStock": 3,
+        "drinkActionTicks": 4,
+        "drinkRestoreRate": 0.15,
+        "restActionTicks": 120,
+        "restRestoreRate": 0.004,
+        "fruitHydration": 0.2
+      },
+      "perception": {
+        "coneDeg": 100,
+        "coneHalfAngleRad": 0.8726646259971648,
+        "nearRadius": 4,
+        "memoryDecayFloor": 0.02,
+        "entityMemoryDecayRate": 0.002,
+        "clusterRadius": 10,
+        "clusterMinCount": 3,
+        "clusterDecayMultiplier": 100
+      },
+      "altitude": {
+        "uphillPenaltyMultiplier": 1.5,
+        "downhillBonusMultiplier": 0.9,
+        "altitudeDiffThreshold": 0.5,
+        "foodAltitudeBiasStrength": 0.7,
+        "restAltitudeBiasStrength": 0.6,
+        "preferredAltitudeMax": 30
+      }
+    }
+  },
+  "seeds": [
+    {
+      "seed": 20260422,
+      "initialAgents": 50,
+      "ticksRun": 2500,
+      "survivingAgents": 50,
+      "firstExtinctionTick": null,
+      "deathsByCause": {},
+      "water": {
+        "discoveredAgents": 50,
+        "drankAgents": 50,
+        "firstDiscoveryTick": 1,
+        "firstDrinkTick": 170
+      },
+      "lifespanTicks": {
+        "medianOfDead": null,
+        "maxOfDead": null
+      },
+      "activity": {
+        "travelCells": 972842,
+        "idleAgentTicks": 19457,
+        "movingAgentTicks": 30728,
+        "waitingAgentTicks": 4,
+        "drinkAgentTicks": 1026,
+        "fruitHydrationAgentTicks": 200,
+        "travelCellsByDay": [
+          153549,
+          130043,
+          140553,
+          140819,
+          137875,
+          140802,
+          129201
+        ]
+      },
+      "performance": {
+        "wallMs": 185117.97,
+        "cpuMs": 186073.2,
+        "tickP50Ms": 68.97,
+        "tickP95Ms": 189.44,
+        "peakSampledRssBytes": 393699328
+      },
+      "snapshots": [
+        {
+          "tick": 0,
+          "primaryBytes": 26312,
+          "backupBytes": 0
+        },
+        {
+          "tick": 500,
+          "primaryBytes": 1214316,
+          "backupBytes": 26312
+        },
+        {
+          "tick": 1000,
+          "primaryBytes": 1482328,
+          "backupBytes": 1214316
+        },
+        {
+          "tick": 1500,
+          "primaryBytes": 1583090,
+          "backupBytes": 1482328
+        },
+        {
+          "tick": 2000,
+          "primaryBytes": 1675593,
+          "backupBytes": 1583090
+        },
+        {
+          "tick": 2500,
+          "primaryBytes": 1734959,
+          "backupBytes": 1675593
+        }
+      ],
+      "agents": {
+        "a-1": {
+          "firstWaterSeenTick": 174,
+          "firstDrinkTick": 176,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19696,
+          "idleTicks": 374,
+          "movingTicks": 622,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3143,
+            2655,
+            2942,
+            2782,
+            2877,
+            2791,
+            2506
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-2": {
+          "firstWaterSeenTick": 174,
+          "firstDrinkTick": 174,
+          "drinkTicks": 22,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19524,
+          "idleTicks": 386,
+          "movingTicks": 615,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3192,
+            2570,
+            3017,
+            2965,
+            2471,
+            2663,
+            2646
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-3": {
+          "firstWaterSeenTick": 119,
+          "firstDrinkTick": 176,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19401,
+          "idleTicks": 391,
+          "movingTicks": 614,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            2689,
+            2638,
+            2763,
+            2875,
+            2758,
+            2868,
+            2810
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-4": {
+          "firstWaterSeenTick": 209,
+          "firstDrinkTick": 211,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19581,
+          "idleTicks": 381,
+          "movingTicks": 619,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3271,
+            2626,
+            2916,
+            2837,
+            2681,
+            2604,
+            2646
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-5": {
+          "firstWaterSeenTick": 191,
+          "firstDrinkTick": 193,
+          "drinkTicks": 22,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19648,
+          "idleTicks": 382,
+          "movingTicks": 618,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            2855,
+            2363,
+            2869,
+            2901,
+            3016,
+            2889,
+            2755
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-6": {
+          "firstWaterSeenTick": 187,
+          "firstDrinkTick": 189,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19860,
+          "idleTicks": 362,
+          "movingTicks": 628,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3172,
+            2536,
+            2826,
+            2884,
+            2792,
+            2829,
+            2821
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-7": {
+          "firstWaterSeenTick": 188,
+          "firstDrinkTick": 190,
+          "drinkTicks": 22,
+          "fruitHydrationTicks": 4,
+          "travelCells": 20325,
+          "idleTicks": 330,
+          "movingTicks": 643,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3269,
+            2757,
+            2962,
+            2954,
+            2875,
+            2998,
+            2510
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-8": {
+          "firstWaterSeenTick": 120,
+          "firstDrinkTick": 180,
+          "drinkTicks": 22,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19074,
+          "idleTicks": 414,
+          "movingTicks": 602,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            2825,
+            2682,
+            2463,
+            2709,
+            2774,
+            2941,
+            2680
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-9": {
+          "firstWaterSeenTick": 75,
+          "firstDrinkTick": 182,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19116,
+          "idleTicks": 412,
+          "movingTicks": 604,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3216,
+            2581,
+            2815,
+            2700,
+            2547,
+            2669,
+            2588
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-10": {
+          "firstWaterSeenTick": 172,
+          "firstDrinkTick": 172,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 18695,
+          "idleTicks": 438,
+          "movingTicks": 591,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3158,
+            2470,
+            2802,
+            2590,
+            2224,
+            2772,
+            2679
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-11": {
+          "firstWaterSeenTick": 179,
+          "firstDrinkTick": 179,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19847,
+          "idleTicks": 364,
+          "movingTicks": 627,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3323,
+            2409,
+            2736,
+            2888,
+            2889,
+            2928,
+            2674
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-12": {
+          "firstWaterSeenTick": 45,
+          "firstDrinkTick": 172,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19517,
+          "idleTicks": 386,
+          "movingTicks": 616,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            2934,
+            2778,
+            2740,
+            2525,
+            2879,
+            2803,
+            2858
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-13": {
+          "firstWaterSeenTick": 57,
+          "firstDrinkTick": 183,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 20040,
+          "idleTicks": 353,
+          "movingTicks": 633,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3310,
+            2691,
+            2772,
+            2755,
+            2800,
+            2972,
+            2740
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-14": {
+          "firstWaterSeenTick": 103,
+          "firstDrinkTick": 178,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19662,
+          "idleTicks": 377,
+          "movingTicks": 621,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            2927,
+            2727,
+            2730,
+            2805,
+            3038,
+            2690,
+            2745
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-15": {
+          "firstWaterSeenTick": 198,
+          "firstDrinkTick": 200,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19215,
+          "idleTicks": 405,
+          "movingTicks": 607,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            2957,
+            2445,
+            2774,
+            2914,
+            2627,
+            2995,
+            2503
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-16": {
+          "firstWaterSeenTick": 189,
+          "firstDrinkTick": 192,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19666,
+          "idleTicks": 378,
+          "movingTicks": 620,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3048,
+            2859,
+            2925,
+            2651,
+            2994,
+            2766,
+            2423
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-17": {
+          "firstWaterSeenTick": 182,
+          "firstDrinkTick": 184,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 18929,
+          "idleTicks": 422,
+          "movingTicks": 599,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3239,
+            2409,
+            2588,
+            2803,
+            2595,
+            2852,
+            2443
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-18": {
+          "firstWaterSeenTick": 190,
+          "firstDrinkTick": 192,
+          "drinkTicks": 22,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19515,
+          "idleTicks": 380,
+          "movingTicks": 618,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3143,
+            2686,
+            3018,
+            2724,
+            2591,
+            2820,
+            2533
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-19": {
+          "firstWaterSeenTick": 200,
+          "firstDrinkTick": 204,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19458,
+          "idleTicks": 387,
+          "movingTicks": 614,
+          "waitingTicks": 4,
+          "travelCellsByDay": [
+            3169,
+            2594,
+            2713,
+            2769,
+            2916,
+            2713,
+            2584
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-20": {
+          "firstWaterSeenTick": 190,
+          "firstDrinkTick": 192,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19019,
+          "idleTicks": 417,
+          "movingTicks": 601,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3296,
+            2467,
+            2641,
+            2773,
+            2704,
+            2797,
+            2341
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-21": {
+          "firstWaterSeenTick": 140,
+          "firstDrinkTick": 174,
+          "drinkTicks": 22,
+          "fruitHydrationTicks": 4,
+          "travelCells": 18759,
+          "idleTicks": 430,
+          "movingTicks": 593,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            2910,
+            2287,
+            2815,
+            2721,
+            2629,
+            2738,
+            2659
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-22": {
+          "firstWaterSeenTick": 190,
+          "firstDrinkTick": 192,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19228,
+          "idleTicks": 404,
+          "movingTicks": 608,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            2868,
+            2603,
+            2724,
+            2769,
+            2606,
+            2952,
+            2706
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-23": {
+          "firstWaterSeenTick": 189,
+          "firstDrinkTick": 190,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 18890,
+          "idleTicks": 426,
+          "movingTicks": 597,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            2768,
+            2587,
+            2718,
+            2873,
+            2809,
+            2671,
+            2464
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-24": {
+          "firstWaterSeenTick": 196,
+          "firstDrinkTick": 198,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19441,
+          "idleTicks": 391,
+          "movingTicks": 614,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3017,
+            2608,
+            2930,
+            2651,
+            2928,
+            2696,
+            2611
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-25": {
+          "firstWaterSeenTick": 207,
+          "firstDrinkTick": 209,
+          "drinkTicks": 22,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19491,
+          "idleTicks": 382,
+          "movingTicks": 617,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3275,
+            2593,
+            2689,
+            2762,
+            2703,
+            2798,
+            2671
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-26": {
+          "firstWaterSeenTick": 181,
+          "firstDrinkTick": 181,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19531,
+          "idleTicks": 388,
+          "movingTicks": 615,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            2975,
+            2461,
+            2814,
+            3098,
+            2945,
+            2849,
+            2389
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-27": {
+          "firstWaterSeenTick": 192,
+          "firstDrinkTick": 192,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19577,
+          "idleTicks": 380,
+          "movingTicks": 619,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3036,
+            2862,
+            2644,
+            2902,
+            2790,
+            2792,
+            2551
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-28": {
+          "firstWaterSeenTick": 178,
+          "firstDrinkTick": 181,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19525,
+          "idleTicks": 384,
+          "movingTicks": 617,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3054,
+            2601,
+            2819,
+            2844,
+            2835,
+            2876,
+            2496
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-29": {
+          "firstWaterSeenTick": 216,
+          "firstDrinkTick": 216,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 20046,
+          "idleTicks": 353,
+          "movingTicks": 633,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3255,
+            2378,
+            2987,
+            2779,
+            2873,
+            2922,
+            2852
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-30": {
+          "firstWaterSeenTick": 186,
+          "firstDrinkTick": 188,
+          "drinkTicks": 22,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19157,
+          "idleTicks": 405,
+          "movingTicks": 606,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3022,
+            2580,
+            2680,
+            2654,
+            2647,
+            2868,
+            2706
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-31": {
+          "firstWaterSeenTick": 190,
+          "firstDrinkTick": 193,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19199,
+          "idleTicks": 406,
+          "movingTicks": 606,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3050,
+            2584,
+            2885,
+            2534,
+            2618,
+            2775,
+            2753
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-32": {
+          "firstWaterSeenTick": 207,
+          "firstDrinkTick": 207,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 18810,
+          "idleTicks": 428,
+          "movingTicks": 596,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3131,
+            2602,
+            2851,
+            2762,
+            2500,
+            2672,
+            2292
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-33": {
+          "firstWaterSeenTick": 196,
+          "firstDrinkTick": 198,
+          "drinkTicks": 22,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19659,
+          "idleTicks": 374,
+          "movingTicks": 621,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3155,
+            2478,
+            3011,
+            2829,
+            2700,
+            2960,
+            2526
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-34": {
+          "firstWaterSeenTick": 195,
+          "firstDrinkTick": 197,
+          "drinkTicks": 22,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19578,
+          "idleTicks": 378,
+          "movingTicks": 620,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3109,
+            2666,
+            2820,
+            2884,
+            2751,
+            2861,
+            2487
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-35": {
+          "firstWaterSeenTick": 188,
+          "firstDrinkTick": 190,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19770,
+          "idleTicks": 375,
+          "movingTicks": 622,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            2959,
+            2720,
+            2966,
+            2859,
+            2724,
+            2854,
+            2688
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-36": {
+          "firstWaterSeenTick": 179,
+          "firstDrinkTick": 181,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19633,
+          "idleTicks": 381,
+          "movingTicks": 619,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            2967,
+            2694,
+            3035,
+            2828,
+            2644,
+            3000,
+            2465
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-37": {
+          "firstWaterSeenTick": 181,
+          "firstDrinkTick": 181,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19828,
+          "idleTicks": 366,
+          "movingTicks": 627,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3197,
+            2728,
+            2808,
+            2977,
+            2835,
+            2684,
+            2599
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-38": {
+          "firstWaterSeenTick": 178,
+          "firstDrinkTick": 180,
+          "drinkTicks": 22,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19206,
+          "idleTicks": 408,
+          "movingTicks": 604,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3174,
+            2672,
+            2841,
+            2721,
+            2787,
+            2678,
+            2333
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-39": {
+          "firstWaterSeenTick": 180,
+          "firstDrinkTick": 182,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19016,
+          "idleTicks": 414,
+          "movingTicks": 602,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            2684,
+            2523,
+            2748,
+            2990,
+            2811,
+            2640,
+            2620
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-40": {
+          "firstWaterSeenTick": 183,
+          "firstDrinkTick": 185,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19516,
+          "idleTicks": 383,
+          "movingTicks": 618,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3265,
+            2309,
+            2972,
+            2761,
+            2806,
+            2859,
+            2544
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-41": {
+          "firstWaterSeenTick": 176,
+          "firstDrinkTick": 178,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19686,
+          "idleTicks": 374,
+          "movingTicks": 622,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            2952,
+            2877,
+            2778,
+            2835,
+            2686,
+            3010,
+            2548
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-42": {
+          "firstWaterSeenTick": 142,
+          "firstDrinkTick": 171,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19459,
+          "idleTicks": 390,
+          "movingTicks": 614,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            2792,
+            2826,
+            2554,
+            3012,
+            2910,
+            2684,
+            2681
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-43": {
+          "firstWaterSeenTick": 169,
+          "firstDrinkTick": 171,
+          "drinkTicks": 22,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19096,
+          "idleTicks": 410,
+          "movingTicks": 604,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            2945,
+            2458,
+            2846,
+            2740,
+            2797,
+            2816,
+            2494
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-44": {
+          "firstWaterSeenTick": 79,
+          "firstDrinkTick": 170,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19279,
+          "idleTicks": 400,
+          "movingTicks": 609,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3133,
+            2591,
+            2795,
+            2849,
+            2786,
+            2703,
+            2422
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-45": {
+          "firstWaterSeenTick": 22,
+          "firstDrinkTick": 181,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19660,
+          "idleTicks": 379,
+          "movingTicks": 620,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3230,
+            2730,
+            2739,
+            2908,
+            2955,
+            2711,
+            2387
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-46": {
+          "firstWaterSeenTick": 5,
+          "firstDrinkTick": 173,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19970,
+          "idleTicks": 362,
+          "movingTicks": 628,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3005,
+            2792,
+            2855,
+            2908,
+            2620,
+            3096,
+            2694
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-47": {
+          "firstWaterSeenTick": 1,
+          "firstDrinkTick": 182,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 20036,
+          "idleTicks": 356,
+          "movingTicks": 632,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3228,
+            2403,
+            2979,
+            2981,
+            2997,
+            2785,
+            2663
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-48": {
+          "firstWaterSeenTick": 8,
+          "firstDrinkTick": 206,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19289,
+          "idleTicks": 402,
+          "movingTicks": 609,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3072,
+            2556,
+            2685,
+            2914,
+            2638,
+            2806,
+            2618
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-49": {
+          "firstWaterSeenTick": 17,
+          "firstDrinkTick": 177,
+          "drinkTicks": 22,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19005,
+          "idleTicks": 417,
+          "movingTicks": 600,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3053,
+            2738,
+            2885,
+            2803,
+            2579,
+            2620,
+            2327
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        },
+        "a-50": {
+          "firstWaterSeenTick": 203,
+          "firstDrinkTick": 203,
+          "drinkTicks": 20,
+          "fruitHydrationTicks": 4,
+          "travelCells": 19714,
+          "idleTicks": 372,
+          "movingTicks": 624,
+          "waitingTicks": 0,
+          "travelCellsByDay": [
+            3132,
+            2593,
+            2668,
+            2867,
+            2918,
+            3066,
+            2470
+          ],
+          "lifetimeTicks": null,
+          "deathCause": null
+        }
+      }
+    }
+  ]
+}
