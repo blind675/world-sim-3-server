@@ -52,7 +52,7 @@ All configuration via environment variables. See `.env.example` for complete lis
 - `WORLD_HEIGHT=5120` - World height in meters
 - `TERRAIN_CACHE_MAX_CHUNKS=256` - Maximum terrain chunks retained in memory
 - `SIM_TICK_MS=10000` locally, `20000` in production - Wall-clock interval between simulation ticks. With 360 ticks/day, a production day lasts two real hours. This changes viewing pace and processing headroom, not needs or distance per simulated day. Existing snapshots can be restored at a different interval.
-- `SIM_TICKS_PER_DAY=360` - Four simulated minutes per tick; one simulated day takes one real hour at the default interval
+- `SIM_TICKS_PER_DAY=360` - Four simulated minutes per tick; one simulated day takes two real hours at the production default interval
 - `MOVE_CELLS_PER_STEP=32` - Maximum path cells traversed per two ticks while walking (up to 5.76 km per day if moving continuously on 1 m cells)
 
 ### Perception (Milestone 4)
@@ -64,6 +64,7 @@ All configuration via environment variables. See `.env.example` for complete lis
 - Hunger reaches its lethal limit after seven simulated days without food; thirst after three days without water. Agents start seeking both much earlier.
 - Tiredness rises over two days but is not directly lethal. Agents can rest on any walkable cell; a future day/night milestone will add a preferred sleep schedule.
 - Agents can drink while standing in shallow water or on walkable terrain adjacent to water. Generated water-source and rest-spot objects remain visible for compatibility but are no longer required for survival.
+- Thirsty agents without a remembered shoreline use a bounded coarse terrain search (up to 640 m) for a waterward heading. This hint is not stored as a sighting; the agent must still reach and perceive a drinkable shore. Fatal hunger and thirst take precedence over nonfatal tiredness.
 - A completed fruit meal also reduces thirst by 0.2 by default; this does not count as drinking in the survival baseline. Tune with `FRUIT_HYDRATION` only after comparing fixed seeds.
 
 ## Docker Deployment

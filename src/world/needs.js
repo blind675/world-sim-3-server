@@ -44,8 +44,8 @@ function decayNeeds(agent, config) {
   }
 }
 
-// Priority-ordered list of (need, goalType, threshold) triples. Thirst
-// first, then hunger, then tiredness — water is the most urgent need.
+// Priority-ordered list of (need, goalType, threshold) triples. Thirst is
+// first when two fatal needs have the same time remaining.
 function buildPriorityList(config) {
   const s = config.survival;
   return [
@@ -62,22 +62,27 @@ const NEED_TO_MEMORY_TYPE = Object.freeze({
   tiredness: 'rest_spot',
 });
 
-// Returns the most urgent need that is above its threshold, or null if
-// every need is still comfortable.
+// Fatal needs take precedence over tiredness. Rest is interruptible and
+// tiredness is not fatal, so choosing rest just because it reached 1 first
+// can leave an agent resting until it dies of thirst. Among hunger and thirst,
+// prefer the one with less time left at the configured decay rate.
 function pickUrgentNeed(agent, config) {
   const priorities = buildPriorityList(config);
-  // Two-pass: first find any need above its threshold, then among those
-  // pick the one with the highest absolute value. Priority order is used
-  // purely as a tiebreaker via Array order.
+  const active = priorities.filter(p => agent[p.need] >= p.threshold);
+  const fatal = active.filter(p => p.need !== 'tiredness');
+  const choices = fatal.length ? fatal : active;
   let best = null;
-  for (const p of priorities) {
+  for (const p of choices) {
     const value = agent[p.need];
-    if (value < p.threshold) continue;
-    if (!best || value > best.value) {
-      best = { ...p, value };
+    const rate = config.survival[`${p.need}DecayRate`];
+    const timeLeft = rate > 0 ? (1 - value) / rate : Infinity;
+    if (!best || timeLeft < best.timeLeft) {
+      best = { ...p, value, timeLeft };
     }
   }
-  return best;
+  if (!best) return null;
+  const { timeLeft, ...need } = best;
+  return need;
 }
 
 // Pick the highest-confidence memory entry for the given memory type.

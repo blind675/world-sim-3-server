@@ -6,7 +6,7 @@ const { updateAgentMemory } = require('./memory');
 const { splitmix32 } = require('../utils/prng');
 const { wrappedDistance } = require('../utils/wrap');
 const { clockAt } = require('./clock');
-const { canDrinkAt } = require('./water');
+const { canDrinkAt, createWaterGuide } = require('./water');
 const { isCellPathable } = require('./agents');
 const { wrap } = require('../utils/wrap');
 const {
@@ -25,6 +25,7 @@ function createSimulation(world, onTick = () => {}) {
   const { simulation: simConfig } = config;
   const tickMs = simConfig.tickMs || 200;
   const rng = splitmix32(config.seed ^ 0x6d2b79f5);
+  const waterGuide = createWaterGuide(world.terrain, config);
 
   let tickCount = 0;
   let intervalId = null;
@@ -160,6 +161,10 @@ function createSimulation(world, onTick = () => {}) {
           guided: wrappedDistance(agent.x, agent.y, mem.x, mem.y,
             config.width, config.height) > 40,
         };
+      }
+      if (urgent.need === 'thirst') {
+        const hint = waterGuide.hintAt(agent.x, agent.y);
+        if (hint) return { type: urgent.goal, targetX: hint.x, targetY: hint.y, guided: true };
       }
       // No memory of a suitable resource — wander far to explore and
       // hopefully stumble into one. Pick a wider random hop.

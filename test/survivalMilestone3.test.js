@@ -8,8 +8,8 @@ const path = require('node:path');
 const { buildConfig } = require('../src/config/worldConfig');
 const { createWorld } = require('../src/world/world');
 const { clockAt } = require('../src/world/clock');
-const { canDrinkAt, shoreCandidates } = require('../src/world/water');
-const { beginActionIfArrived, tickAction, decayNeeds } = require('../src/world/needs');
+const { canDrinkAt, shoreCandidates, createWaterGuide } = require('../src/world/water');
+const { beginActionIfArrived, tickAction, decayNeeds, pickUrgentNeed } = require('../src/world/needs');
 const { wrap } = require('../src/utils/wrap');
 
 test('360 ticks form a day and the clock continues across a snapshot', () => {
@@ -73,6 +73,14 @@ test('terrain drinking recognizes water across the wrapped world edge', () => {
   assert.equal(canDrinkAt(terrain, config, 4, 2), false);
 });
 
+test('a coarse water hint wraps and respects its search radius', () => {
+  const config = { ...buildConfig(), width: 128, height: 128 };
+  const terrain = { waterDepthAt: (x, y) => x === 112 && y === 16 ? 1 : 0 };
+  const guide = createWaterGuide(terrain, config);
+  assert.deepEqual(guide.hintAt(1, 16), { x: 112, y: 16 });
+  assert.equal(guide.hintAt(70, 70), null);
+});
+
 test('a completed fruit meal provides hydration without a water action', () => {
   const config = buildConfig();
   const food = { id: 'fruit', type: 'food', x: 1, y: 1 };
@@ -90,6 +98,38 @@ test('a completed fruit meal provides hydration without a water action', () => {
   }
   assert.equal(agent.state, 'idle');
   assert.equal(agent.thirst, 0.5 - config.survival.fruitHydration);
+});
+
+test('fatal needs outrank nonfatal tiredness, with the nearest fatal deadline first', () => {
+  const config = buildConfig();
+  assert.equal(pickUrgentNeed({ thirst: 0.9, hunger: 0.3, tiredness: 1 }, config).goal, 'seek_water');
+  assert.equal(pickUrgentNeed({ thirst: 0.3, hunger: 0.99, tiredness: 1 }, config).goal, 'seek_food');
+  assert.equal(pickUrgentNeed({ thirst: 0.1, hunger: 0.1, tiredness: 0.8 }, config).goal, 'seek_rest');
+});
+
+test('terrain-guided water seeking continues deterministically after restore', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'water-guide-world-'));
+  const base = buildConfig();
+  const config = { ...base, seed: 20260421, agents: { ...base.agents, count: 4 } };
+  try {
+    const world = createWorld({ config, snapshotDir: dir, autoStart: false });
+    const thirsty = world.agents.getById('a-4');
+    thirsty.thirst = 0.3;
+    world.simulation.tick();
+    assert.equal(thirsty.currentGoal?.type, 'seek_water');
+    assert.equal(thirsty.currentGoal?.guided, true);
+    assert.equal(thirsty.memory.some(entry => entry.type === 'water_source'), false);
+    world.saveSnapshot();
+    const restored = createWorld({ config, snapshotDir: dir, autoStart: false });
+    for (let i = 0; i < 8; i++) {
+      world.simulation.tick();
+      restored.simulation.tick();
+    }
+    const state = agent => ({ x: agent.x, y: agent.y, thirst: agent.thirst,
+      state: agent.state, currentGoal: agent.currentGoal, pathIndex: agent.pathIndex });
+    assert.deepEqual(state(restored.agents.getById('a-4')), state(world.agents.getById('a-4')));
+    restored.stop(); world.stop();
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
 test('multi-cell movement follows the route and restores mid-segment', () => {
