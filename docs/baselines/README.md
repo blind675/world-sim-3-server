@@ -1,10 +1,10 @@
 # Survival baselines
 
-The [milestone 3 report](survival-m3.md) measures the new 360-tick day, ground-bird movement, terrain-water drinking, and rest-anywhere behavior. The remainder of this page preserves the version 1 reference taken before those changes.
+The [milestone 4 report](survival-m4.md) measures habitat objects and the first food lifecycle against the [completed milestone 3 water-seeking report](survival-m3-water-guide.md). The first [milestone 3 run](survival-m3.md) exposed excessive thirst deaths. The remainder of this page preserves the version 1 reference taken before those changes.
 
 ## Version 1 reference
 
-This report measures the current survival loop before milestone 3 changes it. The checked-in [JSON report](survival-v1.json) comes from:
+This report measured the survival loop before milestone 3 changed it. The checked-in [JSON report](survival-v1.json) comes from:
 
 ```bash
 npm run baseline -- --output docs/baselines/survival-v1.json

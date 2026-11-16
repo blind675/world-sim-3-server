@@ -18,7 +18,7 @@ Current ideas for the next simulation phase are collected in a [discussion draft
 - Terrain chunks and seeded static objects are generated on demand. The terrain cache is bounded; a full world heightmap is not built at startup.
 - Viewport and chunk APIs serve only requested map data. Resource statistics report coverage of generated chunks.
 - The frontend reads `NEXT_PUBLIC_BACKEND_URL` and polls the backend for updates.
-- Versioned object definitions live in a JSON catalogue. Existing object ids and placement stay stable while validated definitions select variants, colours, sprites, and vision blocking. Snapshots pin the catalogue hash.
+- Versioned object definitions live in a JSON catalogue. Legacy object IDs and positions stay stable; habitat definitions add deterministic mushroom, reed, and fallen-wood positions. Mushroom offspring can rot on a sparse tick schedule. Snapshots pin the catalogue hash and persist perishable offspring.
 - The emerging ground-bird simulation uses 360 ticks per simulated day. Agents traverse bounded walking path segments, remember reachable terrain shorelines, drink from adjacent terrain water, and rest on walkable ground. Day/night preferences and climate remain later milestones; see the roadmap and fixed-seed baseline reports for measured survival.
 
 ## Run locally
