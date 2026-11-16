@@ -88,6 +88,7 @@ router.post('/agents/:id/path', (req, res, next) => {
     a.actionTicksRemaining = 0;
     a.currentGoal = null;
     a.currentAction = null;
+    a.behaviorState = null;
     if (path === null) {
       agents.setPath(a, []);
       return res.status(422).json({ error: 'no_path', from: { x: a.x, y: a.y }, to: { x: gx, y: gy } });

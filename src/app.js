@@ -70,6 +70,11 @@ function createApp() {
     catch (error) { next(error); }
   });
 
+  app.get('/api/behavior-definitions', (_req, res, next) => {
+    try { res.json(getWorld().behaviorCatalog.publicView()); }
+    catch (error) { next(error); }
+  });
+
   app.use('/api/world', worldRoutes);
   app.use('/api/entities', entitiesRoutes);
   app.use('/api', agentsRoutes);

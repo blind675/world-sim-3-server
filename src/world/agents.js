@@ -101,6 +101,8 @@ function createAgentStore(config, terrain, chunkIndex) {
         state: 'idle',
         currentGoal: null,
         currentAction: null,
+        behaviorState: null,
+        behaviorCooldowns: {},
         targetId: null,
         path: [],
         pathIndex: 0,
@@ -144,6 +146,7 @@ function createAgentStore(config, terrain, chunkIndex) {
       state: a.state,
       currentGoal: a.currentGoal,
       currentAction: a.currentAction,
+      behavior: a.behaviorState ? { ...a.behaviorState } : null,
       targetId: a.targetId,
       actionTargetId: a.actionTargetId,
       actionTicksRemaining: a.actionTicksRemaining,
@@ -194,6 +197,8 @@ function createAgentStore(config, terrain, chunkIndex) {
     all.length = 0;
     for (const data of saved) {
       const agent = structuredClone(data);
+      agent.behaviorState ??= null;
+      agent.behaviorCooldowns ??= {};
       agent.movementTargetIndex ??= null;
       agent._cx = Math.floor(agent.x / chunkSize);
       agent._cy = Math.floor(agent.y / chunkSize);

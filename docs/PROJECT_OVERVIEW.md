@@ -7,7 +7,7 @@ The project is split across three Git repositories:
 - [Frontend](https://github.com/blind675/world-sim-3-client): Next.js, TypeScript, and Tailwind; canvas viewer and inspection panels.
 - [Mobile](https://github.com/blind675/world-sim-3-mobile): Expo and React Native; native read-only viewer.
 
-The simulation is agent-first: a deterministic, wrapped 5120 × 5120 cell world supports autonomous agents that move, perceive, remember, and respond to hunger, thirst, and tiredness. The browser shows terrain, resources, agents, and simulation statistics. Milestones 0–5 are substantially implemented; the [PRD](PRODUCT_REQUIREMENTS.md) and [checklist](BUILD_CHECKLIST.md) contain the longer-term vision and historical progress notes.
+The simulation is agent-first: a deterministic, wrapped 5120 × 5120 cell world supports autonomous agents that move, perceive, remember, and respond to hunger, thirst, and tiredness. The browser shows terrain, resources, agents, and simulation statistics. The [current roadmap](SIMULATION_ROADMAP.md) tracks the active milestone sequence; the [PRD](PRODUCT_REQUIREMENTS.md) and [checklist](BUILD_CHECKLIST.md) use older milestone numbers and preserve historical plans.
 
 Current ideas for the next simulation phase are collected in a [discussion draft](SIMULATION_DESIGN_DRAFT.md). Its proposals and open questions are not implemented requirements.
 
@@ -19,6 +19,7 @@ Current ideas for the next simulation phase are collected in a [discussion draft
 - Viewport and chunk APIs serve only requested map data. Resource statistics report coverage of generated chunks.
 - The frontend reads `NEXT_PUBLIC_BACKEND_URL` and polls the backend for updates.
 - Versioned object definitions live in a JSON catalogue. Legacy object IDs and positions stay stable; habitat definitions add deterministic mushroom, reed, and fallen-wood positions. Mushroom offspring can rot on a sparse tick schedule. Snapshots pin the catalogue hash and persist perishable offspring.
+- A separate versioned behavior catalogue schedules bounded idle, look-around, and exploration policies. Urgent survival needs interrupt leisure. Agent behavior progress and the catalogue hash are saved with the world; web and mobile viewers only display the active policy.
 - The emerging ground-bird simulation uses 360 ticks per simulated day. Agents traverse bounded walking path segments, remember reachable terrain shorelines, drink from adjacent terrain water, and rest on walkable ground. Day/night preferences and climate remain later milestones; see the roadmap and fixed-seed baseline reports for measured survival.
 
 ## Run locally

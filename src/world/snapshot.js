@@ -3,6 +3,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const { loadBehaviorCatalog } = require('./behaviorCatalog');
+const LEGACY_COMPATIBLE_BEHAVIOR_HASH = 'b769d2a92b8f9854cf88037741afd5d194b0979de6f8e989bf33a78c450bcfdc';
 
 const VERSION = 1;
 const FILE = 'world.json';
@@ -52,7 +54,38 @@ function assertState(state) {
   }
 }
 
-function createSnapshotStore(directory, config, objectCatalog, { legacyConfig = null, previousTickMs = null } = {}) {
+function assertBehaviorStates(state, catalog) {
+  const tick = state.simulation.tickCount;
+  for (const agent of state.agents) {
+    const active = agent.behaviorState;
+    if (active != null) {
+      const def = catalog.get(active.id);
+      if (!def || !Number.isSafeInteger(active.startedTick) || active.startedTick < 0
+        || active.startedTick > tick || tick - active.startedTick > def.maxTicks
+        || !Number.isSafeInteger(active.stepIndex) || active.stepIndex < 0
+        || !Number.isSafeInteger(active.stepTicksLeft) || active.stepTicksLeft < 0
+        || (def.algorithm === 'sequence'
+          ? (active.stepIndex >= def.steps.length
+            || active.stepTicksLeft < 1
+            || active.stepTicksLeft > def.steps[active.stepIndex].ticks)
+          : active.stepIndex !== 0 || active.stepTicksLeft !== 0)) {
+        throw new Error('Invalid snapshot agent behavior');
+      }
+    }
+    if (agent.behaviorCooldowns != null) {
+      if (!agent.behaviorCooldowns || typeof agent.behaviorCooldowns !== 'object'
+        || Object.entries(agent.behaviorCooldowns).some(([id, until]) =>
+          catalog.get(id)?.kind !== 'leisure' || !Number.isSafeInteger(until)
+          || until < 0 || until > tick + 1440)) {
+        throw new Error('Invalid snapshot behavior cooldowns');
+      }
+    }
+  }
+}
+
+function createSnapshotStore(directory, config, objectCatalog, {
+  legacyConfig = null, previousTickMs = null, behaviorCatalog = loadBehaviorCatalog(),
+} = {}) {
   fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
   const primary = path.join(directory, FILE);
   const backup = `${primary}.bak`;
@@ -87,9 +120,16 @@ function createSnapshotStore(directory, config, objectCatalog, { legacyConfig = 
     if (document.catalogHash === undefined && !objectCatalog.legacyCompatible) {
       throw new Error('Snapshot object catalogue mismatch: legacy snapshot requires the built-in catalogue');
     }
+    if (document.behaviorHash !== undefined && document.behaviorHash !== behaviorCatalog.hash) {
+      throw new Error('Snapshot behavior catalogue mismatch; restore the pinned catalogue or start a new world');
+    }
+    if (document.behaviorHash === undefined && behaviorCatalog.hash !== LEGACY_COMPATIBLE_BEHAVIOR_HASH) {
+      throw new Error('Snapshot behavior catalogue mismatch: legacy snapshot requires the built-in catalogue');
+    }
     const bytes = JSON.stringify(document.state);
     if (crypto.createHash('sha256').update(bytes).digest('hex') !== document.checksum) throw new Error('Snapshot checksum mismatch');
     assertState(document.state);
+    assertBehaviorStates(document.state, behaviorCatalog);
     return document.state;
   }
 
@@ -143,9 +183,10 @@ function createSnapshotStore(directory, config, objectCatalog, { legacyConfig = 
 
   function encode(state) {
     assertState(state);
+    assertBehaviorStates(state, behaviorCatalog);
     const checksum = crypto.createHash('sha256').update(JSON.stringify(state)).digest('hex');
     return JSON.stringify({ version: VERSION, configHashVersion: 2, configHash,
-      catalogHash: objectCatalog.hash, checksum, state });
+      catalogHash: objectCatalog.hash, behaviorHash: behaviorCatalog.hash, checksum, state });
   }
 
   function save(state) {

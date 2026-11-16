@@ -1,6 +1,6 @@
 # Survival baselines
 
-The [milestone 4 report](survival-m4.md) measures habitat objects and the first food lifecycle against the [completed milestone 3 water-seeking report](survival-m3-water-guide.md). The first [milestone 3 run](survival-m3.md) exposed excessive thirst deaths. The remainder of this page preserves the version 1 reference taken before those changes.
+The [milestone 5 report](survival-m5.md) measures the behavior scheduler against the [milestone 4 habitat result](survival-m4.md) and the [milestone 3 water-seeking result](survival-m3-water-guide.md). The first [milestone 3 run](survival-m3.md) exposed excessive thirst deaths. The remainder of this page preserves the version 1 reference taken before those changes.
 
 ## Version 1 reference
 

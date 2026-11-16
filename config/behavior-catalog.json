@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "ground_bird",
+  "revision": 1,
+  "definitions": [
+    { "id": "idle", "kind": "leisure", "algorithm": "sequence", "weight": 1,
+      "minComfort": 0, "cooldownTicks": 0, "maxTicks": 10, "interrupt": "urgent",
+      "steps": [{ "action": "stay", "ticks": 10 }] },
+    { "id": "look_around", "kind": "leisure", "algorithm": "sequence", "weight": 1,
+      "minComfort": 0.65, "cooldownTicks": 30, "maxTicks": 20, "interrupt": "urgent",
+      "steps": [
+        { "action": "stay", "ticks": 4 }, { "action": "turn_right", "ticks": 1 },
+        { "action": "stay", "ticks": 4 }, { "action": "turn_right", "ticks": 1 },
+        { "action": "stay", "ticks": 4 }, { "action": "turn_right", "ticks": 1 },
+        { "action": "stay", "ticks": 4 }, { "action": "turn_right", "ticks": 1 }
+      ] },
+    { "id": "explore", "kind": "leisure", "algorithm": "explore", "weight": 14,
+      "minComfort": 0.55, "cooldownTicks": 0, "maxTicks": 360, "interrupt": "urgent",
+      "fallback": "idle" },
+    { "id": "seek_food", "kind": "survival", "algorithm": "seek_food", "need": "hunger",
+      "maxTicks": 1440, "interrupt": "more_urgent", "fallback": "idle" },
+    { "id": "seek_water", "kind": "survival", "algorithm": "seek_water", "need": "thirst",
+      "maxTicks": 1440, "interrupt": "more_urgent", "fallback": "idle" },
+    { "id": "seek_rest", "kind": "survival", "algorithm": "seek_rest", "need": "tiredness",
+      "maxTicks": 360, "interrupt": "fatal_need", "fallback": "idle" }
+  ]
+}

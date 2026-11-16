@@ -22,6 +22,10 @@ test('production control routes require a valid bearer token', async () => {
     assert.equal(catalogue.schemaVersion, 1);
     assert.ok(catalogue.definitions.some(def => def.id === 'pine_tree'));
     assert.match(catalogue.hash, /^[0-9a-f]{64}$/);
+    const behaviors = await (await fetch(base + '/api/behavior-definitions')).json();
+    assert.equal(behaviors.schemaVersion, 1);
+    assert.ok(behaviors.definitions.some(def => def.id === 'look_around'));
+    assert.match(behaviors.hash, /^[0-9a-f]{64}$/);
     const objects = await (await fetch(base + '/api/entities/in-view?x=0&y=0&w=64&h=64&types=tree,rock,food')).json();
     assert.ok(objects.objects.length > 0);
     assert.ok(objects.objects.every(object => catalogue.definitions.some(def => def.id === object.definitionId && def.behavior === object.type)));
