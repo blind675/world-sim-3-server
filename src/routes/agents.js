@@ -45,10 +45,11 @@ router.get('/agents/:id/perception', (req, res, next) => {
     const { agents, perception, simulation, config } = getWorld();
     const a = agents.getById(req.params.id);
     if (!a) return res.status(404).json({ error: 'not_found' });
-    const visible = perception.perceiveAgent(a);
+    const currentTick = simulation.getStatus().tickCount;
+    const visible = perception.perceiveAgent(a, currentTick);
     res.json({
       id: a.id,
-      tick: simulation.getStatus().tickCount,
+      tick: currentTick,
       x: a.x,
       y: a.y,
       facing: a.facing,
@@ -56,6 +57,7 @@ router.get('/agents/:id/perception', (req, res, next) => {
       perception: {
         coneDeg: config.perception.coneDeg,
         nearRadius: config.perception.nearRadius,
+        effectiveRange: agents.publicView(a, currentTick).effectiveVisionRange,
       },
       count: visible.length,
       visible,

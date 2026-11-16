@@ -6,6 +6,7 @@ const { updateAgentMemory } = require('./memory');
 const { splitmix32 } = require('../utils/prng');
 const { wrappedDistance } = require('../utils/wrap');
 const { clockAt } = require('./clock');
+const { lightAt } = require('./rhythm');
 const { canDrinkAt, createWaterGuide } = require('./water');
 const { isCellPathable } = require('./agents');
 const { wrap } = require('../utils/wrap');
@@ -205,15 +206,17 @@ function createSimulation(world, onTick = () => {}) {
 
   function updateAgent(agent, world, currentTick) {
     // 1. Perception + memory always run first so behaviour uses fresh info.
-    const visible = perception.perceiveAgent(agent);
-    updateAgentMemory(agent, visible, currentTick, world.config);
+    if (agent.state !== 'resting') {
+      const visible = perception.perceiveAgent(agent, currentTick);
+      updateAgentMemory(agent, visible, currentTick, world.config);
+    }
 
     // 2. Needs decay. This may flip agent.dead = true; caller removes it
     //    from the store after this function returns.
     decayNeeds(agent, config);
     if (agent.dead) return;
 
-    const urgent = pickUrgentNeed(agent, config);
+    const urgent = pickUrgentNeed(agent, config, currentTick);
     const active = agent.behaviorState && world.behaviorCatalog.get(agent.behaviorState.id);
     const preempt = active && ((active.kind === 'leisure' && urgent)
       || (active.kind === 'survival' && urgent && urgent.goal !== active.id
@@ -376,6 +379,7 @@ function createSimulation(world, onTick = () => {}) {
       tickCount,
       tickMs,
       clock: clockAt(tickCount, simConfig.ticksPerDay || 360),
+      light: lightAt(tickCount, simConfig.ticksPerDay || 360),
       lastTickAt,
       agentCount: agents.listAll().length,
       deathCount,

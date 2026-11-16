@@ -8,6 +8,7 @@
 
 const { splitmix32 } = require('../utils/prng');
 const { wrap } = require('../utils/wrap');
+const { circadianTypeFor, effectiveVisionRange } = require('./rhythm');
 
 const DEFAULT_TRAITS = Object.freeze({
   visionRange: 20,
@@ -117,7 +118,7 @@ function createAgentStore(config, terrain, chunkIndex) {
         // counts down to completion.
         actionTargetId: null,
         actionTicksRemaining: 0,
-        traits: { ...DEFAULT_TRAITS },
+        traits: { ...DEFAULT_TRAITS, circadianType: circadianTypeFor(seed, id) },
         // Movement tracking for interpolation
         movementStartPos: null,
         movementStartTick: null,
@@ -155,6 +156,7 @@ function createAgentStore(config, terrain, chunkIndex) {
       tiredness: a.tiredness,
       dead: a.dead,
       traits: a.traits,
+      effectiveVisionRange: effectiveVisionRange(a, config, currentTick),
       pathLength: a.path.length,
       pathIndex: a.pathIndex,
       pathRemaining: Math.max(0, a.path.length - a.pathIndex),
@@ -199,6 +201,13 @@ function createAgentStore(config, terrain, chunkIndex) {
       const agent = structuredClone(data);
       agent.behaviorState ??= null;
       agent.behaviorCooldowns ??= {};
+      if (!agent.traits || typeof agent.traits !== 'object') {
+        throw new Error(`Snapshot has invalid traits for ${agent.id}`);
+      }
+      agent.traits.circadianType ??= circadianTypeFor(seed, agent.id);
+      if (agent.traits.circadianType !== 'diurnal' && agent.traits.circadianType !== 'nocturnal') {
+        throw new Error(`Snapshot has invalid circadian preference for ${agent.id}`);
+      }
       agent.movementTargetIndex ??= null;
       agent._cx = Math.floor(agent.x / chunkSize);
       agent._cy = Math.floor(agent.y / chunkSize);

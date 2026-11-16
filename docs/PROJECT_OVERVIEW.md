@@ -20,7 +20,7 @@ Current ideas for the next simulation phase are collected in a [discussion draft
 - The frontend reads `NEXT_PUBLIC_BACKEND_URL` and polls the backend for updates.
 - Versioned object definitions live in a JSON catalogue. Legacy object IDs and positions stay stable; habitat definitions add deterministic mushroom, reed, and fallen-wood positions. Mushroom offspring can rot on a sparse tick schedule. Snapshots pin the catalogue hash and persist perishable offspring.
 - A separate versioned behavior catalogue schedules bounded idle, look-around, and exploration policies. Urgent survival needs interrupt leisure. Agent behavior progress and the catalogue hash are saved with the world; web and mobile viewers only display the active policy.
-- The emerging ground-bird simulation uses 360 ticks per simulated day. Agents traverse bounded walking path segments, remember reachable terrain shorelines, drink from adjacent terrain water, and rest on walkable ground. Day/night preferences and climate remain later milestones; see the roadmap and fixed-seed baseline reports for measured survival.
+- The emerging ground-bird simulation uses 360 ticks per simulated day. Agents traverse bounded walking path segments, remember reachable terrain shorelines, drink from adjacent terrain water, and rest on walkable ground. Tick-derived light reduces vision at night, and diurnal or nocturnal preference steers sleep to the inactive half of the day. Climate remains a later milestone; see the roadmap and fixed-seed baseline reports for measured survival.
 
 ## Run locally
 

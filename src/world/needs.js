@@ -4,11 +4,12 @@
 //
 // Per-tick helpers for needs decay and timed eat/drink/rest actions.
 // Needs are stored on the agent as floats in [0, 1] where 0 means fully
-// satisfied and 1 means critical. When any need reaches 1.0 the agent is
-// marked dead (simulation removes it in the same tick).
+// satisfied and 1 means critical. Hunger or thirst at 1.0 kills an agent;
+// tiredness impairs perception but remains nonlethal.
 
 const { wrappedDistance } = require('../utils/wrap');
 const { canDrinkAt } = require('./water');
+const { isPreferredSleepTime } = require('./rhythm');
 
 // Maps the goal/action types to the need they satisfy so tickAction can
 // stay data-driven.
@@ -46,12 +47,16 @@ function decayNeeds(agent, config) {
 
 // Priority-ordered list of (need, goalType, threshold) triples. Thirst is
 // first when two fatal needs have the same time remaining.
-function buildPriorityList(config) {
+function buildPriorityList(agent, config, currentTick) {
   const s = config.survival;
+  const restThreshold = currentTick === undefined ? s.tirednessThreshold
+    : isPreferredSleepTime(agent, currentTick, config.simulation.ticksPerDay || 360)
+      ? Math.min(0.22, s.tirednessThreshold)
+      : Math.max(0.45, s.tirednessThreshold);
   return [
     { need: 'thirst', goal: 'seek_water', threshold: s.thirstThreshold },
     { need: 'hunger', goal: 'seek_food', threshold: s.hungerThreshold },
-    { need: 'tiredness', goal: 'seek_rest', threshold: s.tirednessThreshold },
+    { need: 'tiredness', goal: 'seek_rest', threshold: restThreshold },
   ];
 }
 
@@ -66,8 +71,8 @@ const NEED_TO_MEMORY_TYPE = Object.freeze({
 // tiredness is not fatal, so choosing rest just because it reached 1 first
 // can leave an agent resting until it dies of thirst. Among hunger and thirst,
 // prefer the one with less time left at the configured decay rate.
-function pickUrgentNeed(agent, config) {
-  const priorities = buildPriorityList(config);
+function pickUrgentNeed(agent, config, currentTick) {
+  const priorities = buildPriorityList(agent, config, currentTick);
   const active = priorities.filter(p => agent[p.need] >= p.threshold);
   const fatal = active.filter(p => p.need !== 'tiredness');
   const choices = fatal.length ? fatal : active;
