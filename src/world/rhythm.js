@@ -1,6 +1,7 @@
 'use strict';
 
 const { clockAt, TICKS_PER_DAY } = require('./clock');
+const { weatherAt } = require('./climate');
 
 // A fixed circadian assignment adds no draws to the simulation PRNG. This is
 // also used when an older snapshot has no preference yet.
@@ -34,7 +35,8 @@ function effectiveVisionRange(agent, config, tickCount) {
     ? ambient + (1 - ambient) * 0.6 : ambient;
   // Fatigue starts impairing sight at 0.5, well before any fatal condition.
   const fatigue = 1 - 0.6 * Math.max(0, Math.min(0.5, (agent.tiredness || 0) - 0.5));
-  return Math.max(config.perception.nearRadius, Math.floor(base * light * fatigue));
+  const weatherVision = weatherAt(config, tickCount).visionMultiplier;
+  return Math.max(config.perception.nearRadius, Math.floor(base * light * fatigue * weatherVision));
 }
 
 module.exports = { circadianTypeFor, lightAt, isPreferredSleepTime, effectiveVisionRange };

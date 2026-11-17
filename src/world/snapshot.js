@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { loadBehaviorCatalog } = require('./behaviorCatalog');
+const { CLIMATE_MODEL_VERSION } = require('./climate');
 const LEGACY_COMPATIBLE_BEHAVIOR_HASH = 'b769d2a92b8f9854cf88037741afd5d194b0979de6f8e989bf33a78c450bcfdc';
 
 const VERSION = 1;
@@ -126,6 +127,9 @@ function createSnapshotStore(directory, config, objectCatalog, {
     if (document.behaviorHash === undefined && behaviorCatalog.hash !== LEGACY_COMPATIBLE_BEHAVIOR_HASH) {
       throw new Error('Snapshot behavior catalogue mismatch: legacy snapshot requires the built-in catalogue');
     }
+    if (document.climateModelVersion !== undefined && document.climateModelVersion !== CLIMATE_MODEL_VERSION) {
+      throw new Error(`Snapshot climate model version ${document.climateModelVersion} is incompatible with ${CLIMATE_MODEL_VERSION}`);
+    }
     const bytes = JSON.stringify(document.state);
     if (crypto.createHash('sha256').update(bytes).digest('hex') !== document.checksum) throw new Error('Snapshot checksum mismatch');
     assertState(document.state);
@@ -186,7 +190,8 @@ function createSnapshotStore(directory, config, objectCatalog, {
     assertBehaviorStates(state, behaviorCatalog);
     const checksum = crypto.createHash('sha256').update(JSON.stringify(state)).digest('hex');
     return JSON.stringify({ version: VERSION, configHashVersion: 2, configHash,
-      catalogHash: objectCatalog.hash, behaviorHash: behaviorCatalog.hash, checksum, state });
+      catalogHash: objectCatalog.hash, behaviorHash: behaviorCatalog.hash,
+      climateModelVersion: CLIMATE_MODEL_VERSION, checksum, state });
   }
 
   function save(state) {

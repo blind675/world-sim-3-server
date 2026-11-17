@@ -9,6 +9,7 @@
 const { splitmix32 } = require('../utils/prng');
 const { wrap } = require('../utils/wrap');
 const { circadianTypeFor, effectiveVisionRange } = require('./rhythm');
+const { temperatureAt } = require('./climate');
 
 const DEFAULT_TRAITS = Object.freeze({
   visionRange: 20,
@@ -157,6 +158,7 @@ function createAgentStore(config, terrain, chunkIndex) {
       dead: a.dead,
       traits: a.traits,
       effectiveVisionRange: effectiveVisionRange(a, config, currentTick),
+      temperatureC: Math.round(temperatureAt(config, terrain.cellAt(a.x, a.y).height, currentTick) * 10) / 10,
       pathLength: a.path.length,
       pathIndex: a.pathIndex,
       pathRemaining: Math.max(0, a.path.length - a.pathIndex),

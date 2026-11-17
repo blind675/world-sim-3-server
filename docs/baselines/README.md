@@ -1,6 +1,6 @@
 # Survival baselines
 
-The [milestone 6 report](survival-m6.md) measures daily rhythm and light against the [milestone 5 behavior result](survival-m5.md), [milestone 4 habitat result](survival-m4.md), and [milestone 3 water-seeking result](survival-m3-water-guide.md). The first [milestone 3 run](survival-m3.md) exposed excessive thirst deaths. The remainder of this page preserves the version 1 reference taken before those changes.
+The [milestone 7 report](survival-m7.md) measures climate against the [milestone 6 daily-rhythm result](survival-m6.md), [milestone 5 behavior result](survival-m5.md), [milestone 4 habitat result](survival-m4.md), and [milestone 3 water-seeking result](survival-m3-water-guide.md). The first [milestone 3 run](survival-m3.md) exposed excessive thirst deaths. The remainder of this page preserves the version 1 reference taken before those changes.
 
 ## Version 1 reference
 

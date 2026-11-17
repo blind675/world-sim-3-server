@@ -10,6 +10,7 @@
 const { wrappedDistance } = require('../utils/wrap');
 const { canDrinkAt } = require('./water');
 const { isPreferredSleepTime } = require('./rhythm');
+const { thermalMultipliers } = require('./climate');
 
 // Maps the goal/action types to the need they satisfy so tickAction can
 // stay data-driven.
@@ -35,10 +36,11 @@ const ACTION_TO_OBJECT_TYPE = Object.freeze({
 
 // Tiredness is a nonlethal deficit. Missing a night can impair an agent,
 // but starvation or dehydration are the direct survival failures.
-function decayNeeds(agent, config) {
+function decayNeeds(agent, config, temperatureC = 22) {
   const s = config.survival;
-  agent.hunger = Math.min(1, agent.hunger + s.hungerDecayRate);
-  agent.thirst = Math.min(1, agent.thirst + s.thirstDecayRate);
+  const thermal = thermalMultipliers(temperatureC);
+  agent.hunger = Math.min(1, agent.hunger + s.hungerDecayRate * thermal.hunger);
+  agent.thirst = Math.min(1, agent.thirst + s.thirstDecayRate * thermal.thirst);
   agent.tiredness = Math.min(1, agent.tiredness + s.tirednessDecayRate);
   if (agent.hunger >= 1 || agent.thirst >= 1) {
     agent.dead = true;
@@ -71,15 +73,16 @@ const NEED_TO_MEMORY_TYPE = Object.freeze({
 // tiredness is not fatal, so choosing rest just because it reached 1 first
 // can leave an agent resting until it dies of thirst. Among hunger and thirst,
 // prefer the one with less time left at the configured decay rate.
-function pickUrgentNeed(agent, config, currentTick) {
+function pickUrgentNeed(agent, config, currentTick, temperatureC = 22) {
   const priorities = buildPriorityList(agent, config, currentTick);
+  const thermal = thermalMultipliers(temperatureC);
   const active = priorities.filter(p => agent[p.need] >= p.threshold);
   const fatal = active.filter(p => p.need !== 'tiredness');
   const choices = fatal.length ? fatal : active;
   let best = null;
   for (const p of choices) {
     const value = agent[p.need];
-    const rate = config.survival[`${p.need}DecayRate`];
+    const rate = config.survival[`${p.need}DecayRate`] * (thermal[p.need] || 1);
     const timeLeft = rate > 0 ? (1 - value) / rate : Infinity;
     if (!best || timeLeft < best.timeLeft) {
       best = { ...p, value, timeLeft };

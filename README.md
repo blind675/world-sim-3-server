@@ -67,6 +67,7 @@ All configuration via environment variables. See `.env.example` for complete lis
 - Agents can drink while standing in shallow water or on walkable terrain adjacent to water. Generated water-source and rest-spot objects remain visible for compatibility but are no longer required for survival.
 - Thirsty agents without a remembered shoreline use a bounded coarse terrain search (up to 640 m) for a waterward heading. This hint is not stored as a sighting; the agent must still reach and perceive a drinkable shore. Fatal hunger and thirst take precedence over nonfatal tiredness.
 - A completed fruit meal also reduces thirst by 0.2 by default; this does not count as drinking in the survival baseline. Tune with `FRUIT_HYDRATION` only after comparing fixed seeds.
+- Local air temperature follows simulated time and elevation. Daily seeded weather can cool or warm it; cold slightly increases hunger, heat slightly increases thirst, and rain shortens sight. See [Temperature and Weather](docs/CLIMATE_MODEL.md).
 
 ## Docker Deployment
 
@@ -91,7 +92,7 @@ docker-compose up -d
 
 ### Health & Status
 - `GET /api/health` - Basic health check
-- `GET /api/simulation/status` - Simulation status (tick count, deaths, world clock, ambient light)
+- `GET /api/simulation/status` - Simulation status (tick count, deaths, world clock, ambient light, weather, sea-level air temperature)
 
 ### World Data
 - `GET /api/world/meta` - World metadata
@@ -110,6 +111,7 @@ docker-compose up -d
 
 Agent summaries now include `type: "agent"`. The in-view response and agent detail include `serverTime` and `lastTickAt` (Unix milliseconds) so viewers can animate each two-tick movement step between polls. These fields describe the current instance's tick clock and are reset appropriately after a snapshot restore.
 Agent list and detail responses include `traits.circadianType` and `effectiveVisionRange`; the debug perception route reports that same effective range. The preference is assigned deterministically and saved, while current vision follows the clock and tiredness.
+Agent list and detail responses also include local `temperatureC`. The value is derived from the current cell and tick, so viewers can show it without adding mutable snapshot state.
 Agent responses also include the active `behavior` record. The checked-in [behavior catalogue](config/behavior-catalog.json) defines bounded idle/look-around action sequences, weighted exploration, and named survival policies. A stay or 90-degree turn consumes one tick; movement, eating, drinking, and resting retain their existing authoritative tick timing. Urgent needs interrupt leisure, and saved behavior progress resumes after a restart. `BEHAVIOR_CATALOG_PATH` can select another validated file at startup, but snapshots pin its hash; changing it requires a deliberate migration or reset. Public viewers cannot edit live behavior rules. See the [behavior model](docs/BEHAVIOR_MODEL.md) for timing and interruption details.
 - `POST /api/agents/:id/path` - Set agent path
 

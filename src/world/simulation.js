@@ -7,6 +7,7 @@ const { splitmix32 } = require('../utils/prng');
 const { wrappedDistance } = require('../utils/wrap');
 const { clockAt } = require('./clock');
 const { lightAt } = require('./rhythm');
+const { temperatureAt, weatherAt } = require('./climate');
 const { canDrinkAt, createWaterGuide } = require('./water');
 const { isCellPathable } = require('./agents');
 const { wrap } = require('../utils/wrap');
@@ -213,10 +214,11 @@ function createSimulation(world, onTick = () => {}) {
 
     // 2. Needs decay. This may flip agent.dead = true; caller removes it
     //    from the store after this function returns.
-    decayNeeds(agent, config);
+    const temperatureC = temperatureAt(config, world.terrain.cellAt(agent.x, agent.y).height, currentTick);
+    decayNeeds(agent, config, temperatureC);
     if (agent.dead) return;
 
-    const urgent = pickUrgentNeed(agent, config, currentTick);
+    const urgent = pickUrgentNeed(agent, config, currentTick, temperatureC);
     const active = agent.behaviorState && world.behaviorCatalog.get(agent.behaviorState.id);
     const preempt = active && ((active.kind === 'leisure' && urgent)
       || (active.kind === 'survival' && urgent && urgent.goal !== active.id
@@ -380,6 +382,8 @@ function createSimulation(world, onTick = () => {}) {
       tickMs,
       clock: clockAt(tickCount, simConfig.ticksPerDay || 360),
       light: lightAt(tickCount, simConfig.ticksPerDay || 360),
+      temperatureC: Math.round(temperatureAt(config, config.terrain.seaLevel, tickCount) * 10) / 10,
+      weather: weatherAt(config, tickCount).type,
       lastTickAt,
       agentCount: agents.listAll().length,
       deathCount,
