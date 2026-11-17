@@ -10,13 +10,8 @@ const { splitmix32 } = require('../utils/prng');
 const { wrap } = require('../utils/wrap');
 const { circadianTypeFor, effectiveVisionRange } = require('./rhythm');
 const { temperatureAt } = require('./climate');
-
-const DEFAULT_TRAITS = Object.freeze({
-  visionRange: 20,
-  memoryCapacity: 50,
-  memoryDecayRate: 0.01,
-  moveSpeed: 1,
-});
+const { loadAgentTemplate } = require('./agentTemplate');
+const crypto = require('node:crypto');
 
 // A cell is pathable if it's walkable ground and not deep water.
 // Mirrors the same predicate used by pathfinding so spawn stays consistent.
@@ -36,7 +31,7 @@ function dirFromDelta(dx, dy) {
   return 0;
 }
 
-function createAgentStore(config, terrain, chunkIndex) {
+function createAgentStore(config, terrain, chunkIndex, agentTemplate = loadAgentTemplate()) {
   const { width, height, chunkSize, seed, agents: agentCfg } = config;
   const deepWaterThreshold = agentCfg.deepWaterThreshold;
   const desiredCount = agentCfg.count;
@@ -44,6 +39,21 @@ function createAgentStore(config, terrain, chunkIndex) {
 
   const byId = new Map();
   const all = []; // preserves spawn order
+
+  function lifespanFor(id) {
+    const span = agentTemplate.lifespanDays.max - agentTemplate.lifespanDays.min + 1;
+    const sample = crypto.createHash('sha256').update(`${seed}:${id}:lifespan-v1`).digest().readUInt32BE(0);
+    return agentTemplate.lifespanDays.min + sample % span;
+  }
+
+  function ageAt(agent, tick) {
+    return Math.max(0, tick - agent.birthTick) / (config.simulation.ticksPerDay || 360);
+  }
+
+  function stageAt(agent, tick) {
+    const age = ageAt(agent, tick);
+    return [...agentTemplate.lifeStages].reverse().find(stage => age >= stage.startDay).id;
+  }
 
 
   function spawnInitial() {
@@ -99,7 +109,9 @@ function createAgentStore(config, terrain, chunkIndex) {
         y,
         facing: Math.floor(rng() * 4) * (Math.PI / 2),
         sex: rng() < 0.5 ? 'female' : 'male',
-        age: 0,
+        templateId: agentTemplate.id,
+        birthTick: 0,
+        lifespanDays: lifespanFor(id),
         state: 'idle',
         currentGoal: null,
         currentAction: null,
@@ -119,7 +131,8 @@ function createAgentStore(config, terrain, chunkIndex) {
         // counts down to completion.
         actionTargetId: null,
         actionTicksRemaining: 0,
-        traits: { ...DEFAULT_TRAITS, circadianType: circadianTypeFor(seed, id) },
+        traits: { ...Object.fromEntries(Object.entries(agentTemplate.inheritedTraits)
+          .map(([key, bounds]) => [key, bounds.default])), circadianType: circadianTypeFor(seed, id) },
         // Movement tracking for interpolation
         movementStartPos: null,
         movementStartTick: null,
@@ -144,7 +157,13 @@ function createAgentStore(config, terrain, chunkIndex) {
       y: a.y,
       facing: a.facing,
       sex: a.sex,
-      age: a.age,
+      templateId: a.templateId,
+      species: agentTemplate.species,
+      birthTick: a.birthTick,
+      age: Math.floor(ageAt(a, currentTick)),
+      ageDays: Math.floor(ageAt(a, currentTick) * 10) / 10,
+      lifeStage: stageAt(a, currentTick),
+      lifespanDays: a.lifespanDays,
       state: a.state,
       currentGoal: a.currentGoal,
       currentAction: a.currentAction,
@@ -196,11 +215,22 @@ function createAgentStore(config, terrain, chunkIndex) {
   function listAll() { return all.slice(); }
   function getById(id) { return byId.get(id) || null; }
 
-  function restore(saved) {
+  function restore(saved, tickCount = 0) {
     byId.clear();
     all.length = 0;
     for (const data of saved) {
       const agent = structuredClone(data);
+      agent.templateId ??= agentTemplate.id;
+      agent.birthTick ??= 0;
+      agent.lifespanDays ??= lifespanFor(agent.id);
+      delete agent.age; // legacy static field; public age is derived from the saved tick
+      if (agent.templateId !== agentTemplate.id || !Number.isSafeInteger(agent.birthTick)
+        || agent.birthTick < 0 || agent.birthTick > tickCount
+        || !Number.isSafeInteger(agent.lifespanDays)
+        || agent.lifespanDays < agentTemplate.lifespanDays.min
+        || agent.lifespanDays > agentTemplate.lifespanDays.max) {
+        throw new Error(`Snapshot has invalid agent identity or age for ${agent.id}`);
+      }
       agent.behaviorState ??= null;
       agent.behaviorCooldowns ??= {};
       if (!agent.traits || typeof agent.traits !== 'object') {
@@ -209,6 +239,10 @@ function createAgentStore(config, terrain, chunkIndex) {
       agent.traits.circadianType ??= circadianTypeFor(seed, agent.id);
       if (agent.traits.circadianType !== 'diurnal' && agent.traits.circadianType !== 'nocturnal') {
         throw new Error(`Snapshot has invalid circadian preference for ${agent.id}`);
+      }
+      for (const [key, bounds] of Object.entries(agentTemplate.inheritedTraits)) {
+        if (!Number.isFinite(agent.traits[key]) || agent.traits[key] < bounds.min
+          || agent.traits[key] > bounds.max) throw new Error(`Snapshot has invalid ${key} for ${agent.id}`);
       }
       agent.movementTargetIndex ??= null;
       agent._cx = Math.floor(agent.x / chunkSize);

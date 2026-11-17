@@ -12,11 +12,12 @@ const { wrap } = require('../utils/wrap');
 const { createSnapshotStore } = require('./snapshot');
 const { loadObjectCatalog } = require('./objectCatalog');
 const { loadBehaviorCatalog } = require('./behaviorCatalog');
+const { loadAgentTemplate } = require('./agentTemplate');
 
 let singleton = null;
 
 function createWorld({ config = buildConfig(), legacyConfig, snapshotDir = process.env.SNAPSHOT_DIR,
-  objectCatalogPath, behaviorCatalogPath, autoStart = true, resetSnapshot = false } = {}) {
+  objectCatalogPath, behaviorCatalogPath, agentTemplatePath, autoStart = true, resetSnapshot = false } = {}) {
   if (process.env.NODE_ENV === 'production' && !snapshotDir) throw new Error('SNAPSHOT_DIR is required in production');
   const interval = Number(process.env.SNAPSHOT_INTERVAL_TICKS || 6);
   if (!Number.isSafeInteger(interval) || interval < 1) throw new Error('SNAPSHOT_INTERVAL_TICKS must be a positive integer');
@@ -28,23 +29,24 @@ function createWorld({ config = buildConfig(), legacyConfig, snapshotDir = proce
   }
   const objectCatalog = loadObjectCatalog(objectCatalogPath);
   const behaviorCatalog = loadBehaviorCatalog(behaviorCatalogPath);
+  const agentTemplate = loadAgentTemplate(agentTemplatePath);
   // Only the known pre-clock default configuration may migrate automatically.
   // Custom configurations require an explicit, exact legacy config; unrelated
   // seeds/settings continue to fail closed.
   const compatibleLegacy = legacyConfig ?? (JSON.stringify(config) === JSON.stringify(buildConfig())
     ? buildConfig({ legacy: true }) : null);
   const snapshotStore = snapshotDir ? createSnapshotStore(snapshotDir, config, objectCatalog,
-    { legacyConfig: compatibleLegacy, previousTickMs, behaviorCatalog }) : null;
+    { legacyConfig: compatibleLegacy, previousTickMs, behaviorCatalog, agentTemplate }) : null;
   const saved = resetSnapshot ? null : snapshotStore?.load();
   const terrain = createTerrain(config);
 
   const chunkIndex = createChunkIndex(config);
   const objects = createObjectStore(config, terrain, chunkIndex, objectCatalog);
-  const agents = createAgentStore(config, terrain, chunkIndex);
+  const agents = createAgentStore(config, terrain, chunkIndex, agentTemplate);
   const deaths = createDeathStore();
   // Perception needs references to the other stores; build it eagerly so the
   // simulation tick loop can call perceiveAgent() without extra wiring.
-  const worldRef = { config, terrain, chunkIndex, objects, agents, objectCatalog, behaviorCatalog };
+  const worldRef = { config, terrain, chunkIndex, objects, agents, objectCatalog, behaviorCatalog, agentTemplate };
   const perception = createPerception(worldRef);
   let world;
   const simulation = createSimulation({ config, terrain, chunkIndex, objects, agents,
@@ -53,8 +55,8 @@ function createWorld({ config = buildConfig(), legacyConfig, snapshotDir = proce
   });
   world = {
     config, terrain, chunkIndex, objects, agents, perception, simulation, deaths,
-    objectCatalog, behaviorCatalog, wrap,
-    snapshotDir, objectCatalogPath, behaviorCatalogPath,
+    objectCatalog, behaviorCatalog, agentTemplate, wrap,
+    snapshotDir, objectCatalogPath, behaviorCatalogPath, agentTemplatePath,
     snapshotState() {
       return { simulation: simulation.snapshot(), agents: agents.listAll(),
         objects: objects.snapshot(), deaths: deaths.getAll() };
@@ -65,7 +67,7 @@ function createWorld({ config = buildConfig(), legacyConfig, snapshotDir = proce
     stop() { simulation.stop(); },
   };
   if (saved) {
-    agents.restore(saved.agents);
+    agents.restore(saved.agents, saved.simulation.tickCount);
     objects.restore(saved.objects);
     for (const agent of agents.listAll()) {
       // Old water-source memories point to generated markers. Relearn
@@ -108,6 +110,7 @@ function resetWorld() {
       snapshotDir: previous.snapshotDir,
       objectCatalogPath: previous.objectCatalogPath,
       behaviorCatalogPath: previous.behaviorCatalogPath,
+      agentTemplatePath: previous.agentTemplatePath,
       autoStart: false,
       resetSnapshot: true,
     });

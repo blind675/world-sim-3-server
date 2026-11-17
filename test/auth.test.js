@@ -26,6 +26,9 @@ test('production control routes require a valid bearer token', async () => {
     assert.equal(behaviors.schemaVersion, 1);
     assert.ok(behaviors.definitions.some(def => def.id === 'look_around'));
     assert.match(behaviors.hash, /^[0-9a-f]{64}$/);
+    const template = await (await fetch(base + '/api/agent-template')).json();
+    assert.equal(template.id, 'ground_bird');
+    assert.match(template.hash, /^[0-9a-f]{64}$/);
     const objects = await (await fetch(base + '/api/entities/in-view?x=0&y=0&w=64&h=64&types=tree,rock,food')).json();
     assert.ok(objects.objects.length > 0);
     assert.ok(objects.objects.every(object => catalogue.definitions.some(def => def.id === object.definitionId && def.behavior === object.type)));
@@ -53,6 +56,9 @@ test('production control routes require a valid bearer token', async () => {
     const list = await (await fetch(base + '/api/agents')).json();
     const agent = list.agents[0];
     assert.equal(agent.type, 'agent');
+    assert.equal(agent.templateId, template.id);
+    assert.equal(agent.lifeStage, 'juvenile');
+    assert.equal(agent.age, 0);
     assert.ok(Number.isFinite(agent.temperatureC));
     const view = await (await fetch(base + `/api/entities/in-view?x=${agent.x}&y=${agent.y}&w=2&h=2&types=agent`)).json();
     assert.ok(view.objects.some(entity => entity.id === agent.id && entity.type === 'agent'));

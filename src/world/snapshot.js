@@ -4,8 +4,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { loadBehaviorCatalog } = require('./behaviorCatalog');
+const { loadAgentTemplate } = require('./agentTemplate');
 const { CLIMATE_MODEL_VERSION } = require('./climate');
 const LEGACY_COMPATIBLE_BEHAVIOR_HASH = 'b769d2a92b8f9854cf88037741afd5d194b0979de6f8e989bf33a78c450bcfdc';
+const LEGACY_COMPATIBLE_AGENT_HASH = 'f850f2fd2f25b9b00322bfa8971c1d1d7dc5e06e99462540f8698d745b9de9ef';
 
 const VERSION = 1;
 const FILE = 'world.json';
@@ -84,8 +86,24 @@ function assertBehaviorStates(state, catalog) {
   }
 }
 
+function assertAgentTemplateState(state, template) {
+  for (const agent of state.agents) {
+    if (agent.templateId !== template.id || !Number.isSafeInteger(agent.birthTick)
+      || agent.birthTick < 0 || agent.birthTick > state.simulation.tickCount
+      || !Number.isSafeInteger(agent.lifespanDays)
+      || agent.lifespanDays < template.lifespanDays.min
+      || agent.lifespanDays > template.lifespanDays.max
+      || Object.entries(template.inheritedTraits).some(([key, bounds]) =>
+        !Number.isFinite(agent.traits[key]) || agent.traits[key] < bounds.min
+        || agent.traits[key] > bounds.max)) {
+      throw new Error(`Invalid snapshot agent template state: ${agent.id}`);
+    }
+  }
+}
+
 function createSnapshotStore(directory, config, objectCatalog, {
   legacyConfig = null, previousTickMs = null, behaviorCatalog = loadBehaviorCatalog(),
+  agentTemplate = loadAgentTemplate(),
 } = {}) {
   fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
   const primary = path.join(directory, FILE);
@@ -127,6 +145,12 @@ function createSnapshotStore(directory, config, objectCatalog, {
     if (document.behaviorHash === undefined && behaviorCatalog.hash !== LEGACY_COMPATIBLE_BEHAVIOR_HASH) {
       throw new Error('Snapshot behavior catalogue mismatch: legacy snapshot requires the built-in catalogue');
     }
+    if (document.agentTemplateHash !== undefined && document.agentTemplateHash !== agentTemplate.hash) {
+      throw new Error('Snapshot agent template mismatch; restore the pinned template or start a new world');
+    }
+    if (document.agentTemplateHash === undefined && agentTemplate.hash !== LEGACY_COMPATIBLE_AGENT_HASH) {
+      throw new Error('Snapshot agent template mismatch: legacy snapshot requires the built-in template');
+    }
     if (document.climateModelVersion !== undefined && document.climateModelVersion !== CLIMATE_MODEL_VERSION) {
       throw new Error(`Snapshot climate model version ${document.climateModelVersion} is incompatible with ${CLIMATE_MODEL_VERSION}`);
     }
@@ -134,6 +158,7 @@ function createSnapshotStore(directory, config, objectCatalog, {
     if (crypto.createHash('sha256').update(bytes).digest('hex') !== document.checksum) throw new Error('Snapshot checksum mismatch');
     assertState(document.state);
     assertBehaviorStates(document.state, behaviorCatalog);
+    if (document.agentTemplateHash !== undefined) assertAgentTemplateState(document.state, agentTemplate);
     return document.state;
   }
 
@@ -188,9 +213,11 @@ function createSnapshotStore(directory, config, objectCatalog, {
   function encode(state) {
     assertState(state);
     assertBehaviorStates(state, behaviorCatalog);
+    assertAgentTemplateState(state, agentTemplate);
     const checksum = crypto.createHash('sha256').update(JSON.stringify(state)).digest('hex');
     return JSON.stringify({ version: VERSION, configHashVersion: 2, configHash,
       catalogHash: objectCatalog.hash, behaviorHash: behaviorCatalog.hash,
+      agentTemplateHash: agentTemplate.hash,
       climateModelVersion: CLIMATE_MODEL_VERSION, checksum, state });
   }
 

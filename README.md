@@ -107,6 +107,7 @@ docker-compose up -d
 - `GET /api/entities/:id` - Object detail; food includes current stock and regrowth status
 - `GET /api/object-definitions` - Versioned, read-only object catalogue
 - `GET /api/behavior-definitions` - Versioned, read-only behavior catalogue
+- `GET /api/agent-template` - Versioned, read-only ground-bird template
 - `GET /api/agents` - All agents
 - `GET /api/agents/:id` - Agent details
 
@@ -114,6 +115,7 @@ Agent summaries now include `type: "agent"`. The in-view response and agent deta
 Agent list and detail responses include `traits.circadianType` and `effectiveVisionRange`; the debug perception route reports that same effective range. The preference is assigned deterministically and saved, while current vision follows the clock and tiredness.
 Agent list and detail responses also include local `temperatureC`. The value is derived from the current cell and tick, so viewers can show it without adding mutable snapshot state.
 Agent responses also include the active `behavior` record. The checked-in [behavior catalogue](config/behavior-catalog.json) defines bounded idle/look-around action sequences, weighted exploration, and named survival policies. A stay or 90-degree turn consumes one tick; movement, eating, drinking, and resting retain their existing authoritative tick timing. Urgent needs interrupt leisure, and saved behavior progress resumes after a restart. `BEHAVIOR_CATALOG_PATH` can select another validated file at startup, but snapshots pin its hash; changing it requires a deliberate migration or reset. Public viewers cannot edit live behavior rules. See the [behavior model](docs/BEHAVIOR_MODEL.md) for timing and interruption details.
+Agent responses now include `templateId`, `species`, `birthTick`, simulated `age` and `ageDays`, `lifeStage`, and `lifespanDays`. Age derives from the saved tick and `SIM_TICKS_PER_DAY`; lifespan is a potential inherited trait and does not cause death yet. The validated [agent template](config/agent-template.json) supplies stage thresholds and trait bounds. Snapshots pin its hash; old agents migrate without resetting the world. See [agent template and life stages](docs/AGENT_TEMPLATE.md).
 - `POST /api/agents/:id/path` - Set agent path
 
 Object instances expose a `definitionId` for names, colours, sprites, vision blocking, and terrain preferences. The built-in [object catalogue](config/object-catalog.json) preserves legacy positions and adds habitat-specific mushrooms, reeds, and fallen wood at new deterministic positions. Dynamic mushroom offspring can rot. `OBJECT_CATALOG_PATH` can load an alternate validated JSON file at startup. Snapshots pin the catalogue hash, so incompatible edits require an offline migration or a new world.
