@@ -410,6 +410,12 @@ function createObjectStore(config, terrain, chunkIndex, objectCatalog = loadObje
     return dynamicFood.has(id) && Number.isSafeInteger(dynamicFood.get(id).expiresAt);
   }
 
+  function isFruitSource(id) {
+    const object = byId.get(id) || ensureById(id);
+    return object?.type === 'food'
+      && objectCatalog.get(object.definitionId)?.spawn.strategy === 'berry_patch';
+  }
+
   function removeDynamicFood(id) {
     const node = dynamicFood.get(id);
     if (!node) return;
@@ -455,16 +461,17 @@ function createObjectStore(config, terrain, chunkIndex, objectCatalog = loadObje
     return (regrowsAt.get(id) | 0) <= tick;
   }
 
-  // Called once when an agent finishes an eat action. Decrements stock and
-  // schedules regrowth when the last stock is consumed.
+  // Called once at berry pickup or when a direct meal finishes. Decrements
+  // stock and schedules regrowth when the last serving is consumed.
   function consumeFood(id, tick) {
     const obj = byId.get(id);
-    if (!obj || obj.type !== 'food') return;
+    if (!obj || obj.type !== 'food' || !isAvailable(id, tick)) return false;
     if (isPerishable(id)) {
       removeDynamicFood(id);
-      return;
+      return true;
     }
     const current = foodStock.has(id) ? foodStock.get(id) : survival.foodStock;
+    if (current <= 0) return false;
     const next = current - 1;
     if (next <= 0) {
       foodStock.set(id, 0);
@@ -472,6 +479,7 @@ function createObjectStore(config, terrain, chunkIndex, objectCatalog = loadObje
     } else {
       foodStock.set(id, next);
     }
+    return true;
   }
 
   // Count food nodes (static + dynamic, excluding depleted) within radius
@@ -695,6 +703,7 @@ function createObjectStore(config, terrain, chunkIndex, objectCatalog = loadObje
     getById,
     ensureById,
     isAvailable,
+    isFruitSource,
     consumeFood,
     tickFoodLifecycle,
     tickRegrowth,

@@ -47,6 +47,23 @@ function assertState(state) {
     if (!a || typeof a.id !== 'string' || ids.has(a.id) || !integer(a.x) || !integer(a.y)
       || !Array.isArray(a.path) || !Array.isArray(a.memory) || !a.traits) throw new Error('Invalid snapshot agent');
     ids.add(a.id);
+    // Undefined is accepted for snapshots predating inventory. New worlds
+    // always save an array, and carrying is deliberately limited to one fruit.
+    if (a.inventory !== undefined && (!Array.isArray(a.inventory) || a.inventory.length > 1
+      || a.inventory.some(item => !item || Object.keys(item).length !== 4
+        || item.kind !== 'fruit' || typeof item.sourceId !== 'string'
+        || !item.sourceId || item.sourceId.length > 160
+        || !(item.definitionId === null || typeof item.definitionId === 'string')
+        || !integer(item.pickedTick) || item.pickedTick > state.simulation.tickCount))) {
+      throw new Error(`Invalid snapshot inventory: ${a.id}`);
+    }
+    if ((a.state === 'eating_carried' && (a.inventory?.length !== 1
+      || a.actionTargetId !== null || !integer(a.actionTicksRemaining)
+      || a.actionTicksRemaining < 1 || a.actionTicksRemaining > 3600))
+      || (a.state === 'collecting_food' && ((a.inventory?.length || 0) !== 0
+        || typeof a.actionTargetId !== 'string' || a.actionTicksRemaining !== 1))) {
+      throw new Error(`Invalid snapshot inventory action: ${a.id}`);
+    }
   }
   const foodIds = new Set();
   for (const node of state.objects.dynamicFood) {

@@ -70,6 +70,13 @@ function runSeed(options, seed) {
       { behaviorCatalog: world.behaviorCatalog, agentTemplate: world.agentTemplate,
         reproductionPolicy: world.reproductionPolicy });
     store.save(world.snapshotState());
+    let foodServingsConsumed = 0;
+    const consumeFood = world.objects.consumeFood;
+    world.objects.consumeFood = (...args) => {
+      const taken = consumeFood(...args);
+      if (taken) foodServingsConsumed++;
+      return taken;
+    };
     const initialSnapshotBytes = fs.statSync(store.primary).size;
     const ticksPerDay = config.simulation.ticksPerDay || 360;
     const startTick = world.simulation.getStatus().tickCount;
@@ -79,12 +86,16 @@ function runSeed(options, seed) {
     let maxLiving = world.agents.listAll().length;
     let firstExtinctionTick = null;
     let travelCells = 0;
+    let fruitPickups = 0;
+    let carriedMeals = 0;
+    let carriedAgentTicks = 0;
     let peakRssBytes = process.memoryUsage().rss;
     let maxSnapshotBytes = initialSnapshotBytes;
     let ticksRun = 0;
     const everSeenIds = new Set(world.agents.listAll().map(agent => agent.id));
     for (let i = 1; i <= options.ticks; i++) {
-      const before = new Map(world.agents.listAll().map(a => [a.id, { x: a.x, y: a.y }]));
+      const before = new Map(world.agents.listAll().map(a => [a.id,
+        { x: a.x, y: a.y, inventoryCount: a.inventory?.length || 0 }]));
       const started = performance.now();
       world.simulation.tick();
       tickTimes.push(performance.now() - started);
@@ -104,7 +115,12 @@ function runSeed(options, seed) {
       maxLiving = Math.max(maxLiving, residents.length);
       for (const agent of residents) {
         const prior = before.get(agent.id);
-        if (prior) travelCells += wrappedTravel(prior, agent, config);
+        if (prior) {
+          travelCells += wrappedTravel(prior, agent, config);
+          if (!prior.inventoryCount && agent.inventory?.length) fruitPickups++;
+          if (prior.inventoryCount && !agent.inventory?.length) carriedMeals++;
+        }
+        carriedAgentTicks += agent.inventory?.length || 0;
       }
       for (const death of world.deaths.getAll()) {
         if (death.tick === tick) causes[death.cause] = (causes[death.cause] || 0) + 1;
@@ -131,6 +147,7 @@ function runSeed(options, seed) {
       alive: residents.length, maxLiving, populationCap: status.populationCap,
       firstExtinctionTick, ageDays: ageDays.length ? distribution(ageDays) : null,
       traits, travelCells, totalMemoryEntries: residents.reduce((n, a) => n + a.memory.length, 0),
+      foodServingsConsumed, fruitPickups, carriedMeals, carriedAgentTicks,
       tickP50Ms: percentile(tickTimes, .5), tickP95Ms: percentile(tickTimes, .95),
       peakSampledRssBytes: peakRssBytes, initialSnapshotBytes,
       finalSnapshotBytes: fs.statSync(store.primary).size,
@@ -143,7 +160,7 @@ function runSeed(options, seed) {
 
 function main() {
   const options = parseArgs(process.argv.slice(2));
-  const report = { reportVersion: 1, mode: options.mode,
+  const report = { reportVersion: 2, mode: options.mode,
     method: options.mode === 'natural' ? 'ordinary ticks from birth' :
       'synthetic 499-day clock advance and founder lifespans 500–503 days, then ordinary ticks',
     limits: 'Offline reduced world/agent settings are not production 5120-cell survival evidence. '

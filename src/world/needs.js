@@ -16,20 +16,21 @@ const { thermalMultipliers } = require('./climate');
 // stay data-driven.
 const ACTION_TO_NEED = Object.freeze({
   eating: 'hunger',
+  eating_carried: 'hunger',
   drinking: 'thirst',
   resting: 'tiredness',
 });
 
 // Maps goal.type (set at decision time) -> action state (set on arrival).
 const GOAL_TO_ACTION = Object.freeze({
-  seek_food: 'eating',
+  seek_food: 'collecting_food',
   seek_water: 'drinking',
   seek_rest: 'resting',
 });
 
 // Maps the action state -> the object type the agent must be adjacent to.
 const ACTION_TO_OBJECT_TYPE = Object.freeze({
-  eating: 'food',
+  collecting_food: 'food',
   drinking: 'water_source',
   resting: 'rest_spot',
 });
@@ -57,7 +58,11 @@ function buildPriorityList(agent, config, currentTick) {
       : Math.max(0.45, s.tirednessThreshold);
   return [
     { need: 'thirst', goal: 'seek_water', threshold: s.thirstThreshold },
-    { need: 'hunger', goal: 'seek_food', threshold: s.hungerThreshold },
+    // Collect at the usual threshold, then hold the single fruit until a
+    // later meal. This leaves time to travel and avoids immediately eating
+    // the item on the tick after pickup.
+    { need: 'hunger', goal: 'seek_food', threshold: agent.inventory?.length
+      ? Math.max(s.hungerThreshold, 0.35) : s.hungerThreshold },
     { need: 'tiredness', goal: 'seek_rest', threshold: restThreshold },
   ];
 }
@@ -108,11 +113,24 @@ function pickMemoryTargetForType(agent, memoryType) {
   return candidates[0];
 }
 
-// Called each tick while agent.state is eating / drinking / resting.
+// Called each tick while an agent collects or uses a resource.
 // Decrements the matching need by actionRestoreRate. Ends the action when
 // the duration elapses OR the need hits 0 OR the target becomes invalid.
 // Returns true if the action ended this tick.
 function tickAction(agent, objects, config, currentTick, terrain = null) {
+  if (agent.state === 'collecting_food') {
+    const target = agent.actionTargetId && objects.getById(agent.actionTargetId);
+    const canTake = target?.type === 'food' && (agent.inventory?.length || 0) === 0
+      && wrappedDistance(agent.x, agent.y, target.x, target.y, config.width, config.height) <= 1.5
+      && objects.isAvailable(target.id, currentTick);
+    if (canTake && objects.consumeFood(target.id, currentTick)) {
+      agent.inventory ??= [];
+      agent.inventory.push({ kind: 'fruit', sourceId: target.id,
+        definitionId: target.definitionId ?? null, pickedTick: currentTick });
+    }
+    endAction(agent, objects, false, currentTick, config.survival);
+    return true;
+  }
   const need = ACTION_TO_NEED[agent.state];
   if (!need) return false;
 
@@ -122,7 +140,8 @@ function tickAction(agent, objects, config, currentTick, terrain = null) {
   // Rest is possible on any walkable cell. Drinking uses adjacent terrain
   // water, including shallow water under the agent's own feet.
   const target = agent.actionTargetId ? objects.getById(agent.actionTargetId) : null;
-  const targetOk = agent.state === 'resting' ? true
+  const targetOk = agent.state === 'eating_carried' ? agent.inventory?.length === 1
+    : agent.state === 'resting' ? true
     : agent.state === 'drinking' && terrain ? canDrinkAt(terrain, config, agent.x, agent.y)
     : target
     && wrappedDistance(agent.x, agent.y, target.x, target.y, width, height) <= 1.5
@@ -149,12 +168,16 @@ function tickAction(agent, objects, config, currentTick, terrain = null) {
   return false;
 }
 
-// Clean up agent action state and apply depletion to food nodes when a
-// visit completes successfully.
+// Clean up action state. Direct meals consume source stock on completion;
+// carried meals already consumed their source stock at pickup.
 function endAction(agent, objects, completed, currentTick, survival) {
   if (completed && agent.state === 'eating' && agent.actionTargetId) {
     // A successful eat consumes one stock; depleted if that was the last.
     objects.consumeFood(agent.actionTargetId, currentTick);
+    agent.thirst = Math.max(0, agent.thirst - (survival.fruitHydration || 0));
+  }
+  if (completed && agent.state === 'eating_carried') {
+    agent.inventory.shift();
     agent.thirst = Math.max(0, agent.thirst - (survival.fruitHydration || 0));
   }
   if (agent.actionTargetId) objects.releaseResource(agent.id, agent.actionTargetId);
@@ -173,6 +196,7 @@ function beginActionIfArrived(agent, objects, config, currentTick, terrain = nul
   if (!goal) return false;
   const actionState = GOAL_TO_ACTION[goal.type];
   if (!actionState) return false;
+  if (actionState === 'collecting_food' && agent.inventory?.length) return false;
 
   if (actionState === 'resting' || (actionState === 'drinking' && terrain)) {
     if (actionState === 'drinking' && !canDrinkAt(terrain, config, agent.x, agent.y)) return false;
@@ -204,6 +228,11 @@ function beginActionIfArrived(agent, objects, config, currentTick, terrain = nul
   }
   if (!best) return false;
 
+  // Berry patches yield a portable fruit. Other edible food, such as the
+  // existing mushroom patch, retains its direct-eating action.
+  const actualAction = actionState === 'collecting_food' && objects.isFruitSource?.(best.id) === false
+    ? 'eating' : actionState;
+
   if (!objects.tryAcquireResource(agent.id, best.id)) {
     agent.state = 'waiting';
     agent.currentAction = 'waiting';
@@ -211,10 +240,10 @@ function beginActionIfArrived(agent, objects, config, currentTick, terrain = nul
     return true;
   }
 
-  agent.state = actionState;
-  agent.currentAction = actionState;
+  agent.state = actualAction;
+  agent.currentAction = actualAction;
   agent.actionTargetId = best.id;
-  agent.actionTicksRemaining = config.survival.actionTicks;
+  agent.actionTicksRemaining = actualAction === 'collecting_food' ? 1 : config.survival.actionTicks;
 
   return true;
 }

@@ -234,7 +234,9 @@ function createSimulation(world, onTick = () => {}) {
 
     const urgent = pickUrgentNeed(agent, config, currentTick, temperatureC);
     const active = agent.behaviorState && world.behaviorCatalog.get(agent.behaviorState.id);
-    const preempt = active && ((active.kind === 'leisure' && urgent)
+    // Once a carried meal starts, finish its short action so a partial meal
+    // cannot restore hunger while leaving the same fruit available to eat again.
+    const preempt = agent.state !== 'eating_carried' && active && ((active.kind === 'leisure' && urgent)
       || (active.kind === 'survival' && urgent && urgent.goal !== active.id
         && (active.interrupt === 'more_urgent'
           || (active.interrupt === 'fatal_need' && urgent.need !== 'tiredness')))
@@ -256,6 +258,8 @@ function createSimulation(world, onTick = () => {}) {
     //    selection entirely this tick regardless of completion.
     if (
       agent.state === 'eating'
+      || agent.state === 'eating_carried'
+      || agent.state === 'collecting_food'
       || agent.state === 'drinking'
       || agent.state === 'resting'
     ) {
@@ -293,9 +297,11 @@ function createSimulation(world, onTick = () => {}) {
         agent.currentGoal = null;
         agent.actionTargetId = null;
       } else if (objects.tryAcquireResource(agent.id, target.id)) {
-        agent.state = actionState;
-        agent.currentAction = actionState;
-        agent.actionTicksRemaining = config.survival.actionTicks;
+        const actualAction = actionState === 'collecting_food' && !objects.isFruitSource(target.id)
+          ? 'eating' : actionState;
+        agent.state = actualAction;
+        agent.currentAction = actualAction;
+        agent.actionTicksRemaining = actualAction === 'collecting_food' ? 1 : config.survival.actionTicks;
       }
       return;
     }
@@ -328,6 +334,14 @@ function createSimulation(world, onTick = () => {}) {
     let goal;
     if (urgent) {
       behaviors.start(agent, urgent.goal, currentTick);
+      if (urgent.need === 'hunger' && agent.inventory?.length) {
+        agent.currentGoal = null;
+        agent.state = 'eating_carried';
+        agent.currentAction = 'eating_carried';
+        agent.actionTargetId = null;
+        agent.actionTicksRemaining = config.survival.actionTicks;
+        return;
+      }
       goal = pickSurvivalGoal(agent, urgent);
     } else {
       const def = behaviors.selectLeisure(agent, currentTick);

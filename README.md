@@ -68,6 +68,7 @@ All configuration via environment variables. See `.env.example` for complete lis
 - Agents can drink while standing in shallow water or on walkable terrain adjacent to water. Generated water-source and rest-spot objects remain visible for compatibility but are no longer required for survival.
 - Thirsty agents without a remembered shoreline use a bounded coarse terrain search (up to 640 m) for a waterward heading. This hint is not stored as a sighting; the agent must still reach and perceive a drinkable shore. Fatal hunger and thirst take precedence over nonfatal tiredness.
 - A completed fruit meal also reduces thirst by 0.2 by default; this does not count as drinking in the survival baseline. Tune with `FRUIT_HYDRATION` only after comparing fixed seeds.
+- Agents can carry one fruit from a berry bush, then eat it after moving. Pickup changes source stock once; carried fruit is saved with the agent. [Inventory model](docs/INVENTORY_MODEL.md) defines the action, capacity, and death rules.
 - Local air temperature follows simulated time and elevation. Daily seeded weather can cool or warm it; cold slightly increases hunger, heat slightly increases thirst, and rain shortens sight. See [Temperature and Weather](docs/CLIMATE_MODEL.md).
 
 ## Docker Deployment

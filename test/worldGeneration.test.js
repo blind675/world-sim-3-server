@@ -95,14 +95,13 @@ test('agents wait for an occupied resource and acquire it after release', () => 
   const second = agent('second');
   assert.equal(beginActionIfArrived(first, store, config, 0), true);
   assert.equal(beginActionIfArrived(second, store, config, 0), true);
-  assert.equal(first.state, 'eating');
+  assert.equal(first.state, 'collecting_food');
   assert.equal(second.state, 'waiting');
   assert.equal(first.actionTargetId, second.actionTargetId);
 
-  for (let tick = 1; tick <= config.survival.actionTicks; tick++) {
-    tickAction(first, store, config, tick);
-  }
+  tickAction(first, store, config, 1);
   assert.equal(first.state, 'idle');
+  assert.equal(first.inventory.length, 1);
   assert.equal(store.tryAcquireResource(second.id, second.actionTargetId), true);
   assert.equal(store.tryAcquireResource('third', second.actionTargetId), false);
   store.removeAgentFromResources(second.id);

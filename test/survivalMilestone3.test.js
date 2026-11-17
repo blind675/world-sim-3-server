@@ -84,19 +84,28 @@ test('a coarse water hint wraps and respects its search radius', () => {
 test('a completed fruit meal provides hydration without a water action', () => {
   const config = buildConfig();
   const food = { id: 'fruit', type: 'food', x: 1, y: 1 };
+  let servingsTaken = 0;
   const objects = {
     queryRect: () => [food], isAvailable: () => true,
     tryAcquireResource: () => true, getById: () => food,
-    consumeFood: () => true, releaseResource: () => true,
+    consumeFood: () => { servingsTaken++; return true; }, releaseResource: () => true,
   };
   const agent = { id: 'fruit-eater', x: 1, y: 1, state: 'idle',
     currentGoal: { type: 'seek_food' }, actionTargetId: null,
     hunger: 0.5, thirst: 0.5, actionTicksRemaining: 0 };
   assert.equal(beginActionIfArrived(agent, objects, config, 1), true);
-  for (let tick = 2; tick < 2 + config.survival.actionTicks; tick++) {
+  tickAction(agent, objects, config, 2);
+  assert.equal(servingsTaken, 1);
+  assert.equal(agent.inventory.length, 1);
+  assert.equal(agent.thirst, 0.5);
+  agent.state = 'eating_carried';
+  agent.actionTicksRemaining = config.survival.actionTicks;
+  for (let tick = 3; tick < 3 + config.survival.actionTicks; tick++) {
     tickAction(agent, objects, config, tick);
   }
   assert.equal(agent.state, 'idle');
+  assert.equal(agent.inventory.length, 0);
+  assert.equal(servingsTaken, 1);
   assert.equal(agent.thirst, 0.5 - config.survival.fruitHydration);
 });
 

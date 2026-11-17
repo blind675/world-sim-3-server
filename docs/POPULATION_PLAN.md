@@ -1,10 +1,10 @@
 # Population and interaction plan
 
-**Status:** Milestones 8–10 complete on `staging`; milestone 11 remains planned. The [roadmap](SIMULATION_ROADMAP.md) is the progress tracker. This plan replaces the old combined milestone 8 without changing the completed milestones 1–7.
+**Status:** Milestones 8–11 complete on `staging`. The [roadmap](SIMULATION_ROADMAP.md) is the progress tracker. This plan replaces the old combined milestone 8 without changing the completed milestones 1–7.
 
 ## Why this order
 
-The current world has a fixed initial group and no births. Adding age-based death before reproduction could remove the last agents from the always-on world. Age and life stages come first as observable data; reproduction comes next under a hard cap; natural lifespan mortality and long-run balance follow once newborns can replace older agents. Inventory is a separate action and persistence problem, so it comes after the population loop.
+The world originally had a fixed initial group and no births. Adding age-based death before reproduction could have removed the last agents from the always-on world. Age and life stages came first as observable data; reproduction followed under a hard cap; natural lifespan mortality and long-run balance followed once newborns could replace older agents. Inventory is a separate action and persistence problem, so it came after the population loop.
 
 ## 8. Agent templates and life stages
 
@@ -29,6 +29,8 @@ Turn on age-related mortality and record it separately from hunger and thirst. T
 Choose one concrete use case: take one fruit from a food source, carry it, and eat it later. The source stock changes once when picked up, the carried item belongs to the agent snapshot, and eating it satisfies hunger without consuming the source again. Keep capacity at one item initially; decide spoilage and dropping rules when implementing this milestone. Show the carried item and action in read-only web/mobile details. Defer generic item stacks, crafting, construction, and social mechanics.
 
 **Completion check:** Verify stock accounting, contention between agents, inventory capacity, carrying across movement, hunger restoration, and snapshot replay. Measure whether carrying food changes survival or resource pressure before generalizing inventory.
+
+**Implemented:** See the [inventory model](INVENTORY_MODEL.md) for pickup, carrying, eating, death, and migration rules, and the [milestone 11 measurement](baselines/population-m11.md) for the three-seed survival and resource comparison. Berry fruit is the single portable item; mushrooms retain the existing direct meal. The web and mobile viewers only display the carried item and action.
 
 ## Shared release rules
 

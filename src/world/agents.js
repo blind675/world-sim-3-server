@@ -222,6 +222,7 @@ function createAgentStore(config, terrain, chunkIndex, agentTemplate = loadAgent
       agent.lifespanDays ??= lifespanFor(agent.id);
       agent.parentIds ??= [];
       agent.lastBirthTick ??= null;
+      agent.inventory ??= [];
       delete agent.age; // legacy static field; public age is derived from the saved tick
       if (agent.templateId !== agentTemplate.id || !Number.isSafeInteger(agent.birthTick)
         || agent.birthTick < 0 || agent.birthTick > tickCount
