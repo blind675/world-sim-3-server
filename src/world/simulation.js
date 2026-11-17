@@ -86,20 +86,28 @@ function createSimulation(world, onTick = () => {}) {
     // iteration. Dead agents are removed at the end of their update.
     const allAgents = agents.listAll();
     const toRemove = [];
+    const ticksPerDay = simConfig.ticksPerDay || 360;
 
     for (const agent of allAgents) {
+      // A lifespan is fixed at birth and saved with the agent. Check before
+      // needs decay so the boundary tick always has one unambiguous cause.
+      if (tickCount - agent.birthTick >= agent.lifespanDays * ticksPerDay) {
+        agent.dead = true;
+        toRemove.push({ id: agent.id, cause: 'old_age' });
+        continue;
+      }
       updateAgent(agent, world, tickCount);
-      if (agent.dead) toRemove.push(agent.id);
+      if (agent.dead) toRemove.push({ id: agent.id });
     }
 
-    for (const id of toRemove) {
+    for (const { id, cause: ageCause } of toRemove) {
       const agent = agents.getById(id);
       if (agent) {
         // Determine cause of death
-        let cause = 'unknown';
-        if (agent.hunger >= 1) cause = 'hunger';
-        else if (agent.thirst >= 1) cause = 'thirst';
-        else if (agent.tiredness >= 1) cause = 'tiredness';
+        let cause = ageCause || 'unknown';
+        if (!ageCause && agent.hunger >= 1) cause = 'hunger';
+        else if (!ageCause && agent.thirst >= 1) cause = 'thirst';
+        else if (!ageCause && agent.tiredness >= 1) cause = 'tiredness';
 
         // Record death
         deaths.addDeath(id, tickCount, cause);

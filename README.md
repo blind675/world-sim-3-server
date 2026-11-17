@@ -100,7 +100,7 @@ docker-compose up -d
 - `GET /api/world/viewport` - Terrain viewport
 - `POST /api/world/chunks` - Batch terrain chunks, generated on demand
 - `GET /api/world/cell` - Single cell data
-- `GET /api/world/statistics` - Agent, death, and generated-area resource statistics
+- `GET /api/world/statistics` - Agent, death, and generated-area resource statistics. `deaths.total` is the durable cumulative count; `deaths.byCause` covers the latest `deaths.retainedRecords` (up to 1,000) and includes `old_age`.
 
 ### Entities
 - `GET /api/entities/in-view` - Objects in viewport

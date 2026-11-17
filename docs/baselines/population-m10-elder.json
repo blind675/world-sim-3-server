@@ -1,0 +1,410 @@
+{
+  "reportVersion": 1,
+  "mode": "elder",
+  "method": "synthetic 499-day clock advance and founder lifespans 500–503 days, then ordinary ticks",
+  "limits": "Offline reduced world/agent settings are not production 5120-cell survival evidence. The elder cohort skips 499 days; timing and RSS are host dependent. Death records retain 1000 entries.",
+  "settings": {
+    "mode": "elder",
+    "seeds": [
+      20260420,
+      20260421,
+      20260422
+    ],
+    "ticks": 2200,
+    "agents": 12,
+    "width": 256,
+    "height": 256,
+    "output": "docs/baselines/population-m10-elder.json",
+    "policyPath": null
+  },
+  "seeds": [
+    {
+      "seed": 20260420,
+      "ticksRun": 2200,
+      "elapsedDays": 6.11,
+      "births": 3,
+      "deaths": 12,
+      "deathsByCause": {
+        "old_age": 12
+      },
+      "alive": 3,
+      "maxLiving": 15,
+      "populationCap": 60,
+      "firstExtinctionTick": null,
+      "ageDays": {
+        "min": 6,
+        "median": 6.06,
+        "max": 6.055555555555555
+      },
+      "traits": {
+        "visionRange": {
+          "min": 19,
+          "median": 20,
+          "max": 21
+        },
+        "memoryCapacity": {
+          "min": 45,
+          "median": 47,
+          "max": 55
+        },
+        "memoryDecayRate": {
+          "min": 0.00955,
+          "median": 0.01,
+          "max": 0.01183
+        },
+        "moveSpeed": {
+          "min": 0.97456,
+          "median": 1.01,
+          "max": 1.01237
+        }
+      },
+      "travelCells": 147073,
+      "totalMemoryEntries": 147,
+      "tickP50Ms": 0.26,
+      "tickP95Ms": 2.75,
+      "peakSampledRssBytes": 129908736,
+      "initialSnapshotBytes": 8947,
+      "finalSnapshotBytes": 35432,
+      "finalBackupBytes": 35360,
+      "maxSnapshotBytes": 96506,
+      "daily": [
+        {
+          "elapsedDays": 1,
+          "alive": 12,
+          "births": 3,
+          "deaths": 3,
+          "primaryBytes": 64139,
+          "backupBytes": 8947
+        },
+        {
+          "elapsedDays": 2,
+          "alive": 9,
+          "births": 3,
+          "deaths": 6,
+          "primaryBytes": 96506,
+          "backupBytes": 64139
+        },
+        {
+          "elapsedDays": 3,
+          "alive": 6,
+          "births": 3,
+          "deaths": 9,
+          "primaryBytes": 68694,
+          "backupBytes": 96506
+        },
+        {
+          "elapsedDays": 4,
+          "alive": 3,
+          "births": 3,
+          "deaths": 12,
+          "primaryBytes": 35355,
+          "backupBytes": 68694
+        },
+        {
+          "elapsedDays": 5,
+          "alive": 3,
+          "births": 3,
+          "deaths": 12,
+          "primaryBytes": 34946,
+          "backupBytes": 35355
+        },
+        {
+          "elapsedDays": 6,
+          "alive": 3,
+          "births": 3,
+          "deaths": 12,
+          "primaryBytes": 35360,
+          "backupBytes": 34946
+        },
+        {
+          "elapsedDays": 6.11,
+          "alive": 3,
+          "births": 3,
+          "deaths": 12,
+          "primaryBytes": 35432,
+          "backupBytes": 35360
+        }
+      ]
+    },
+    {
+      "seed": 20260421,
+      "ticksRun": 2200,
+      "elapsedDays": 6.11,
+      "births": 5,
+      "deaths": 12,
+      "deathsByCause": {
+        "old_age": 12
+      },
+      "alive": 5,
+      "maxLiving": 17,
+      "populationCap": 60,
+      "firstExtinctionTick": null,
+      "ageDays": {
+        "min": 6,
+        "median": 6.06,
+        "max": 6.055555555555555
+      },
+      "traits": {
+        "visionRange": {
+          "min": 19,
+          "median": 21,
+          "max": 22
+        },
+        "memoryCapacity": {
+          "min": 47,
+          "median": 50,
+          "max": 53
+        },
+        "memoryDecayRate": {
+          "min": 0.00817,
+          "median": 0.01,
+          "max": 0.01166
+        },
+        "moveSpeed": {
+          "min": 0.96402,
+          "median": 0.98,
+          "max": 1.01809
+        }
+      },
+      "travelCells": 181624,
+      "totalMemoryEntries": 250,
+      "tickP50Ms": 0.29,
+      "tickP95Ms": 2.43,
+      "peakSampledRssBytes": 209321984,
+      "initialSnapshotBytes": 8961,
+      "finalSnapshotBytes": 58193,
+      "finalBackupBytes": 58389,
+      "maxSnapshotBytes": 111379,
+      "daily": [
+        {
+          "elapsedDays": 1,
+          "alive": 14,
+          "births": 5,
+          "deaths": 3,
+          "primaryBytes": 82344,
+          "backupBytes": 8961
+        },
+        {
+          "elapsedDays": 2,
+          "alive": 11,
+          "births": 5,
+          "deaths": 6,
+          "primaryBytes": 111379,
+          "backupBytes": 82344
+        },
+        {
+          "elapsedDays": 3,
+          "alive": 8,
+          "births": 5,
+          "deaths": 9,
+          "primaryBytes": 91403,
+          "backupBytes": 111379
+        },
+        {
+          "elapsedDays": 4,
+          "alive": 5,
+          "births": 5,
+          "deaths": 12,
+          "primaryBytes": 58380,
+          "backupBytes": 91403
+        },
+        {
+          "elapsedDays": 5,
+          "alive": 5,
+          "births": 5,
+          "deaths": 12,
+          "primaryBytes": 58337,
+          "backupBytes": 58380
+        },
+        {
+          "elapsedDays": 6,
+          "alive": 5,
+          "births": 5,
+          "deaths": 12,
+          "primaryBytes": 58389,
+          "backupBytes": 58337
+        },
+        {
+          "elapsedDays": 6.11,
+          "alive": 5,
+          "births": 5,
+          "deaths": 12,
+          "primaryBytes": 58193,
+          "backupBytes": 58389
+        }
+      ]
+    },
+    {
+      "seed": 20260422,
+      "ticksRun": 2200,
+      "elapsedDays": 6.11,
+      "births": 5,
+      "deaths": 12,
+      "deathsByCause": {
+        "old_age": 12
+      },
+      "alive": 5,
+      "maxLiving": 17,
+      "populationCap": 60,
+      "firstExtinctionTick": null,
+      "ageDays": {
+        "min": 5.833333333333333,
+        "median": 6.06,
+        "max": 6.055555555555555
+      },
+      "traits": {
+        "visionRange": {
+          "min": 19,
+          "median": 21,
+          "max": 21
+        },
+        "memoryCapacity": {
+          "min": 45,
+          "median": 46,
+          "max": 52
+        },
+        "memoryDecayRate": {
+          "min": 0.00826,
+          "median": 0.01,
+          "max": 0.01193
+        },
+        "moveSpeed": {
+          "min": 0.96763,
+          "median": 1.01,
+          "max": 1.04186
+        }
+      },
+      "travelCells": 187083,
+      "totalMemoryEntries": 238,
+      "tickP50Ms": 0.27,
+      "tickP95Ms": 1.91,
+      "peakSampledRssBytes": 236978176,
+      "initialSnapshotBytes": 8971,
+      "finalSnapshotBytes": 55937,
+      "finalBackupBytes": 56152,
+      "maxSnapshotBytes": 102869,
+      "daily": [
+        {
+          "elapsedDays": 1,
+          "alive": 14,
+          "births": 5,
+          "deaths": 3,
+          "primaryBytes": 79171,
+          "backupBytes": 8971
+        },
+        {
+          "elapsedDays": 2,
+          "alive": 11,
+          "births": 5,
+          "deaths": 6,
+          "primaryBytes": 102869,
+          "backupBytes": 79171
+        },
+        {
+          "elapsedDays": 3,
+          "alive": 8,
+          "births": 5,
+          "deaths": 9,
+          "primaryBytes": 86864,
+          "backupBytes": 102869
+        },
+        {
+          "elapsedDays": 4,
+          "alive": 5,
+          "births": 5,
+          "deaths": 12,
+          "primaryBytes": 56126,
+          "backupBytes": 86864
+        },
+        {
+          "elapsedDays": 5,
+          "alive": 5,
+          "births": 5,
+          "deaths": 12,
+          "primaryBytes": 56434,
+          "backupBytes": 56126
+        },
+        {
+          "elapsedDays": 6,
+          "alive": 5,
+          "births": 5,
+          "deaths": 12,
+          "primaryBytes": 56152,
+          "backupBytes": 56434
+        },
+        {
+          "elapsedDays": 6.11,
+          "alive": 5,
+          "births": 5,
+          "deaths": 12,
+          "primaryBytes": 55937,
+          "backupBytes": 56152
+        }
+      ]
+    }
+  ],
+  "worldConfig": {
+    "seed": 20260420,
+    "width": 5120,
+    "height": 5120,
+    "cellSize": 1,
+    "chunkSize": 64,
+    "terrainCacheMaxChunks": 256,
+    "wrapMode": "toroidal",
+    "terrain": {
+      "minHeight": -10,
+      "maxHeight": 80,
+      "seaLevel": 0
+    },
+    "simulation": {
+      "tickMs": 10000,
+      "ticksPerDay": 360
+    },
+    "agents": {
+      "count": 50,
+      "deepWaterThreshold": 1.2,
+      "moveCellsPerStep": 32
+    },
+    "survival": {
+      "hungerDecayRate": 0.0003968253968253968,
+      "thirstDecayRate": 0.000925925925925926,
+      "tirednessDecayRate": 0.001388888888888889,
+      "hungerThreshold": 0.2,
+      "thirstThreshold": 0.15,
+      "tirednessThreshold": 0.35,
+      "actionTicks": 8,
+      "actionRestoreRate": 0.05,
+      "foodRegrowTicks": 500,
+      "foodSpreadRadius": 15,
+      "foodSpreadChance": 0.02,
+      "foodSpreadInterval": 200,
+      "foodDensityRadius": 10,
+      "foodDensityMax": 4,
+      "foodStock": 3,
+      "drinkActionTicks": 4,
+      "drinkRestoreRate": 0.15,
+      "restActionTicks": 120,
+      "restRestoreRate": 0.004,
+      "fruitHydration": 0.2
+    },
+    "perception": {
+      "coneDeg": 100,
+      "coneHalfAngleRad": 0.8726646259971648,
+      "nearRadius": 4,
+      "memoryDecayFloor": 0.02,
+      "entityMemoryDecayRate": 0.002,
+      "clusterRadius": 10,
+      "clusterMinCount": 3,
+      "clusterDecayMultiplier": 100
+    },
+    "altitude": {
+      "uphillPenaltyMultiplier": 1.5,
+      "downhillBonusMultiplier": 0.9,
+      "altitudeDiffThreshold": 0.5,
+      "foodAltitudeBiasStrength": 0.7,
+      "restAltitudeBiasStrength": 0.6,
+      "preferredAltitudeMax": 30
+    }
+  },
+  "reproductionPolicyHash": "deec1f8b0183e40d07f5b4780dc6835b8df8b84f78b3819563a127b6dc219868"
+}

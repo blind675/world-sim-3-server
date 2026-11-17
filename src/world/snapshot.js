@@ -10,6 +10,7 @@ const { CLIMATE_MODEL_VERSION } = require('./climate');
 const LEGACY_COMPATIBLE_BEHAVIOR_HASH = 'b769d2a92b8f9854cf88037741afd5d194b0979de6f8e989bf33a78c450bcfdc';
 const LEGACY_COMPATIBLE_AGENT_HASH = 'f850f2fd2f25b9b00322bfa8971c1d1d7dc5e06e99462540f8698d745b9de9ef';
 const LEGACY_COMPATIBLE_REPRODUCTION_HASH = '75f62d8df4a6243f9e274356f5ccbc5c675f6fe470094913f2e141858f419d6b';
+const M10_REPRODUCTION_HASH = 'deec1f8b0183e40d07f5b4780dc6835b8df8b84f78b3819563a127b6dc219868';
 
 const VERSION = 1;
 const FILE = 'world.json';
@@ -177,11 +178,18 @@ function createSnapshotStore(directory, config, objectCatalog, {
     if (document.agentTemplateHash === undefined && agentTemplate.hash !== LEGACY_COMPATIBLE_AGENT_HASH) {
       throw new Error('Snapshot agent template mismatch: legacy snapshot requires the built-in template');
     }
-    if (document.reproductionHash !== undefined && document.reproductionHash !== reproductionPolicy.hash) {
+    // The built-in milestone 10 policy only widens partner discovery. It
+    // changes no saved counters or agent fields, so the exact milestone 9
+    // built-in hash can continue under the new policy without a reset.
+    const m9PolicyUpgrade = reproductionPolicy.hash === M10_REPRODUCTION_HASH
+      && document.reproductionHash === LEGACY_COMPATIBLE_REPRODUCTION_HASH;
+    if (document.reproductionHash !== undefined && document.reproductionHash !== reproductionPolicy.hash
+      && !m9PolicyUpgrade) {
       throw new Error('Snapshot reproduction policy mismatch; restore the pinned policy or start a new world');
     }
     if (document.reproductionHash === undefined
-      && reproductionPolicy.hash !== LEGACY_COMPATIBLE_REPRODUCTION_HASH) {
+      && reproductionPolicy.hash !== LEGACY_COMPATIBLE_REPRODUCTION_HASH
+      && reproductionPolicy.hash !== M10_REPRODUCTION_HASH) {
       throw new Error('Snapshot reproduction policy mismatch: legacy snapshot requires the built-in policy');
     }
     if (document.climateModelVersion !== undefined && document.climateModelVersion !== CLIMATE_MODEL_VERSION) {

@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "id": "ground_bird_reproduction",
-  "revision": 1,
+  "revision": 2,
   "minimumAgeDays": 30,
   "maxPopulation": 60,
   "checkIntervalTicks": 20,
-  "partnerRadiusCells": 20,
+  "partnerRadiusCells": 64,
   "cooldownDays": 7,
   "maxHunger": 0.35,
   "maxThirst": 0.3,

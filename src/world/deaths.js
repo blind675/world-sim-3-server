@@ -1,4 +1,4 @@
-// Store for agent death records with timestamps and causes
+// Store for agent death records with authoritative ticks and causes.
 // Tracks death statistics without location data
 
 function createDeathStore() {
@@ -11,8 +11,10 @@ function createDeathStore() {
       id: `death:${agentId}:${tick}`,
       agentId,
       tick,
-      cause, // 'hunger', 'thirst', 'tiredness'
-      timestamp: Date.now(),
+      cause,
+      // A wall timestamp would make replay from the same snapshot diverge.
+      // Legacy records retain their original timestamp when restored.
+      timestamp: null,
     };
 
     deaths.push(death);

@@ -258,6 +258,7 @@ router.get('/statistics', (req, res) => {
     const aliveAgents = allAgents.filter(agent => !agent.dead);
     const allDeaths = deaths.getAll();
     const deathsByCause = {
+      old_age: 0,
       hunger: 0,
       thirst: 0,
       tiredness: 0,
@@ -310,7 +311,8 @@ router.get('/statistics', (req, res) => {
         averageNeeds: avgNeeds
       },
       deaths: {
-        total: allDeaths.length,
+        total: simulationStatus.deathCount,
+        retainedRecords: allDeaths.length,
         byCause: deathsByCause
       },
       resources: resourceCounts,

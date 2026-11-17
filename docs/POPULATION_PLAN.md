@@ -1,6 +1,6 @@
 # Population and interaction plan
 
-**Status:** Milestones 8–9 complete on `staging`; milestones 10–11 remain planned. The [roadmap](SIMULATION_ROADMAP.md) is the progress tracker. This plan replaces the old combined milestone 8 without changing the completed milestones 1–7.
+**Status:** Milestones 8–10 complete on `staging`; milestone 11 remains planned. The [roadmap](SIMULATION_ROADMAP.md) is the progress tracker. This plan replaces the old combined milestone 8 without changing the completed milestones 1–7.
 
 ## Why this order
 

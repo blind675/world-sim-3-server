@@ -1,6 +1,6 @@
 # Survival baselines
 
-The [milestone 9 survival report](survival-m9.md) compares the pre-adult period with [milestone 8](survival-m8.md); the separate [reproduction capacity report](reproduction-m9.md) measures synthetic mature agents. Earlier results cover [milestone 7 climate](survival-m7.md), [milestone 6 daily rhythm](survival-m6.md), [milestone 5 behavior](survival-m5.md), [milestone 4 habitat](survival-m4.md), and [milestone 3 water seeking](survival-m3-water-guide.md). The first [milestone 3 run](survival-m3.md) exposed excessive thirst deaths. The remainder of this page preserves the version 1 reference taken before those changes.
+The [milestone 10 population report](population-m10.md) measures natural births, hunger deaths, and controlled age mortality. The [milestone 9 survival report](survival-m9.md) compares the pre-adult period with [milestone 8](survival-m8.md); the separate [reproduction capacity report](reproduction-m9.md) measures synthetic mature agents. Earlier results cover [milestone 7 climate](survival-m7.md), [milestone 6 daily rhythm](survival-m6.md), [milestone 5 behavior](survival-m5.md), [milestone 4 habitat](survival-m4.md), and [milestone 3 water seeking](survival-m3-water-guide.md). The first [milestone 3 run](survival-m3.md) exposed excessive thirst deaths. The remainder of this page preserves the version 1 reference taken before those changes.
 
 ## Version 1 reference
 

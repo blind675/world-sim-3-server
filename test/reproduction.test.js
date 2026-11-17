@@ -206,7 +206,7 @@ test('a milestone 8 snapshot migrates birth counters and rejects incompatible po
     }
     old.checksum = crypto.createHash('sha256').update(JSON.stringify(old.state)).digest('hex');
     fs.writeFileSync(primary, JSON.stringify(old));
-    const changedLegacy = { ...loadReproductionPolicy(), revision: 2 };
+    const changedLegacy = { ...loadReproductionPolicy(), revision: 3 };
     delete changedLegacy.hash;
     delete changedLegacy.publicView;
     const filename = path.join(dir, 'changed-policy.json');
