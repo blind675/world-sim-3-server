@@ -10,7 +10,8 @@
     "start": "node src/server.js",
     "test": "node --test test/*.test.js",
     "bench": "node test-optimization.js",
-    "baseline": "node scripts/survival-baseline.js"
+    "baseline": "node scripts/survival-baseline.js",
+    "baseline:births": "node scripts/reproduction-baseline.js"
   },
   "dependencies": {
     "compression": "^1.8.1",

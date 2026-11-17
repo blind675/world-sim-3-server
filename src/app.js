@@ -80,6 +80,11 @@ function createApp() {
     catch (error) { next(error); }
   });
 
+  app.get('/api/reproduction-policy', (_req, res, next) => {
+    try { res.json(getWorld().reproductionPolicy.publicView()); }
+    catch (error) { next(error); }
+  });
+
   app.use('/api/world', worldRoutes);
   app.use('/api/entities', entitiesRoutes);
   app.use('/api', agentsRoutes);

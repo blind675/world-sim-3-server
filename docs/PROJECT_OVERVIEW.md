@@ -29,6 +29,6 @@ Start the backend from this repository with `npm install`, `cp .env.example .env
 ## Current deployment gaps
 
 Mutable agent and resource state is now saved to versioned snapshots on a persistent volume. Production control routes require a server-side bearer token. A deployment still needs one always-on instance, a durable volume, a configured secret, and off-host backups for disaster recovery. See [Docker Deployment](DOCKER_DEPLOYMENT.md) for the exact settings.
-The checked-in [agent template](AGENT_TEMPLATE.md) defines the current ground bird's inherited-trait bounds and life stages. Birth tick and lifespan potential are stored per agent; displayed age and stage derive from saved simulation ticks. The template hash is pinned in snapshots, and older agents migrate without resetting. Lifespan mortality and reproduction are planned separately.
+The checked-in [agent template](AGENT_TEMPLATE.md) defines the current ground bird's inherited-trait bounds and life stages. Birth tick and lifespan potential are stored per agent; displayed age and stage derive from saved simulation ticks. The template hash is pinned in snapshots, and older agents migrate without resetting. A separate [reproduction policy](REPRODUCTION_MODEL.md) governs two-parent births, inherited traits, parental needs costs, cooldowns, and a bounded population. Age-related mortality remains planned for milestone 10.
 
-Planned later work includes richer live updates, multi-agent interactions, reproduction, and trait inheritance. The backend API serves both web and mobile viewers.
+Planned later work includes age-related mortality, population balance, first inventory use, and richer multi-agent interactions. The backend API serves both web and mobile viewers.

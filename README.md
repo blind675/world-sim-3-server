@@ -108,6 +108,7 @@ docker-compose up -d
 - `GET /api/object-definitions` - Versioned, read-only object catalogue
 - `GET /api/behavior-definitions` - Versioned, read-only behavior catalogue
 - `GET /api/agent-template` - Versioned, read-only ground-bird template
+- `GET /api/reproduction-policy` - Versioned, read-only breeding limits and costs
 - `GET /api/agents` - All agents
 - `GET /api/agents/:id` - Agent details
 
@@ -116,6 +117,7 @@ Agent list and detail responses include `traits.circadianType` and `effectiveVis
 Agent list and detail responses also include local `temperatureC`. The value is derived from the current cell and tick, so viewers can show it without adding mutable snapshot state.
 Agent responses also include the active `behavior` record. The checked-in [behavior catalogue](config/behavior-catalog.json) defines bounded idle/look-around action sequences, weighted exploration, and named survival policies. A stay or 90-degree turn consumes one tick; movement, eating, drinking, and resting retain their existing authoritative tick timing. Urgent needs interrupt leisure, and saved behavior progress resumes after a restart. `BEHAVIOR_CATALOG_PATH` can select another validated file at startup, but snapshots pin its hash; changing it requires a deliberate migration or reset. Public viewers cannot edit live behavior rules. See the [behavior model](docs/BEHAVIOR_MODEL.md) for timing and interruption details.
 Agent responses now include `templateId`, `species`, `birthTick`, simulated `age` and `ageDays`, `lifeStage`, and `lifespanDays`. Age derives from the saved tick and `SIM_TICKS_PER_DAY`; lifespan is a potential inherited trait and does not cause death yet. The validated [agent template](config/agent-template.json) supplies stage thresholds and trait bounds. Snapshots pin its hash; old agents migrate without resetting the world. See [agent template and life stages](docs/AGENT_TEMPLATE.md).
+Eligible adults can now reproduce when nearby, healthy, off cooldown, and below a hard population cap. Agent responses include `parentIds` and `lastBirthTick`; simulation status includes cumulative `birthCount` and `populationCap`. Successful births add bounded hunger and thirst to both parents, and the newborn inherits numeric traits within the template's bounds. The [reproduction policy](config/reproduction-policy.json) is checked in and pinned in snapshots. Older snapshots migrate without replacing the world. See [reproduction and inheritance](docs/REPRODUCTION_MODEL.md).
 - `POST /api/agents/:id/path` - Set agent path
 
 Object instances expose a `definitionId` for names, colours, sprites, vision blocking, and terrain preferences. The built-in [object catalogue](config/object-catalog.json) preserves legacy positions and adds habitat-specific mushrooms, reeds, and fallen wood at new deterministic positions. Dynamic mushroom offspring can rot. `OBJECT_CATALOG_PATH` can load an alternate validated JSON file at startup. Snapshots pin the catalogue hash, so incompatible edits require an offline migration or a new world.
@@ -134,6 +136,7 @@ Object instances expose a `definitionId` for names, colours, sprites, vision blo
 - `npm test` - World generation regression tests
 - `npm run bench` - Small terrain chunk benchmark
 - `npm run baseline -- --output /tmp/survival.json` - Offline, fixed-seed survival benchmark (defaults to three seeds, 2,500 ticks, and the configured agent count). Use `--seeds 7,8`, `--ticks 500`, `--agents 10`, `--checkpoint-every 100`, and `--output path.json` to adjust a run. It does not start the server, tick timer, or write to the production snapshot volume. See [the baseline report](docs/baselines/README.md) for metric definitions and results.
+- `npm run baseline:births -- --output /tmp/births.json` - Offline, three-seed mature-population capacity run. It advances the clock to adulthood without simulating the preceding days, then measures births, resource demand, and snapshot growth without touching the production volume.
 
 ### Testing
 ```bash
@@ -189,4 +192,4 @@ Set `DEBUG=*` environment variable for verbose logging.
 
 ## Milestone Status
 
-See the [current roadmap](docs/SIMULATION_ROADMAP.md) for completed milestones 1–7 and planned milestones 8–11. The older numbering in the historical PRD and build checklist is not the current implementation plan.
+See the [current roadmap](docs/SIMULATION_ROADMAP.md) for the current milestone and remaining work. The older numbering in the historical PRD and build checklist is not the current implementation plan.

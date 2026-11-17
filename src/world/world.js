@@ -13,11 +13,13 @@ const { createSnapshotStore } = require('./snapshot');
 const { loadObjectCatalog } = require('./objectCatalog');
 const { loadBehaviorCatalog } = require('./behaviorCatalog');
 const { loadAgentTemplate } = require('./agentTemplate');
+const { loadReproductionPolicy } = require('./reproductionPolicy');
 
 let singleton = null;
 
 function createWorld({ config = buildConfig(), legacyConfig, snapshotDir = process.env.SNAPSHOT_DIR,
-  objectCatalogPath, behaviorCatalogPath, agentTemplatePath, autoStart = true, resetSnapshot = false } = {}) {
+  objectCatalogPath, behaviorCatalogPath, agentTemplatePath, reproductionPolicyPath,
+  autoStart = true, resetSnapshot = false } = {}) {
   if (process.env.NODE_ENV === 'production' && !snapshotDir) throw new Error('SNAPSHOT_DIR is required in production');
   const interval = Number(process.env.SNAPSHOT_INTERVAL_TICKS || 6);
   if (!Number.isSafeInteger(interval) || interval < 1) throw new Error('SNAPSHOT_INTERVAL_TICKS must be a positive integer');
@@ -30,13 +32,15 @@ function createWorld({ config = buildConfig(), legacyConfig, snapshotDir = proce
   const objectCatalog = loadObjectCatalog(objectCatalogPath);
   const behaviorCatalog = loadBehaviorCatalog(behaviorCatalogPath);
   const agentTemplate = loadAgentTemplate(agentTemplatePath);
+  const reproductionPolicy = loadReproductionPolicy(reproductionPolicyPath);
   // Only the known pre-clock default configuration may migrate automatically.
   // Custom configurations require an explicit, exact legacy config; unrelated
   // seeds/settings continue to fail closed.
   const compatibleLegacy = legacyConfig ?? (JSON.stringify(config) === JSON.stringify(buildConfig())
     ? buildConfig({ legacy: true }) : null);
   const snapshotStore = snapshotDir ? createSnapshotStore(snapshotDir, config, objectCatalog,
-    { legacyConfig: compatibleLegacy, previousTickMs, behaviorCatalog, agentTemplate }) : null;
+    { legacyConfig: compatibleLegacy, previousTickMs, behaviorCatalog, agentTemplate,
+      reproductionPolicy }) : null;
   const saved = resetSnapshot ? null : snapshotStore?.load();
   const terrain = createTerrain(config);
 
@@ -46,17 +50,18 @@ function createWorld({ config = buildConfig(), legacyConfig, snapshotDir = proce
   const deaths = createDeathStore();
   // Perception needs references to the other stores; build it eagerly so the
   // simulation tick loop can call perceiveAgent() without extra wiring.
-  const worldRef = { config, terrain, chunkIndex, objects, agents, objectCatalog, behaviorCatalog, agentTemplate };
+  const worldRef = { config, terrain, chunkIndex, objects, agents, deaths,
+    objectCatalog, behaviorCatalog, agentTemplate, reproductionPolicy };
   const perception = createPerception(worldRef);
   let world;
   const simulation = createSimulation({ config, terrain, chunkIndex, objects, agents,
-    perception, deaths, behaviorCatalog, wrap }, tick => {
+    perception, deaths, behaviorCatalog, agentTemplate, reproductionPolicy, wrap }, tick => {
     if (tick % interval === 0) world.saveSnapshot();
   });
   world = {
     config, terrain, chunkIndex, objects, agents, perception, simulation, deaths,
-    objectCatalog, behaviorCatalog, agentTemplate, wrap,
-    snapshotDir, objectCatalogPath, behaviorCatalogPath, agentTemplatePath,
+    objectCatalog, behaviorCatalog, agentTemplate, reproductionPolicy, wrap,
+    snapshotDir, objectCatalogPath, behaviorCatalogPath, agentTemplatePath, reproductionPolicyPath,
     snapshotState() {
       return { simulation: simulation.snapshot(), agents: agents.listAll(),
         objects: objects.snapshot(), deaths: deaths.getAll() };
@@ -111,6 +116,7 @@ function resetWorld() {
       objectCatalogPath: previous.objectCatalogPath,
       behaviorCatalogPath: previous.behaviorCatalogPath,
       agentTemplatePath: previous.agentTemplatePath,
+      reproductionPolicyPath: previous.reproductionPolicyPath,
       autoStart: false,
       resetSnapshot: true,
     });

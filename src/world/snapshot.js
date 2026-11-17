@@ -5,9 +5,11 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { loadBehaviorCatalog } = require('./behaviorCatalog');
 const { loadAgentTemplate } = require('./agentTemplate');
+const { loadReproductionPolicy } = require('./reproductionPolicy');
 const { CLIMATE_MODEL_VERSION } = require('./climate');
 const LEGACY_COMPATIBLE_BEHAVIOR_HASH = 'b769d2a92b8f9854cf88037741afd5d194b0979de6f8e989bf33a78c450bcfdc';
 const LEGACY_COMPATIBLE_AGENT_HASH = 'f850f2fd2f25b9b00322bfa8971c1d1d7dc5e06e99462540f8698d745b9de9ef';
+const LEGACY_COMPATIBLE_REPRODUCTION_HASH = '75f62d8df4a6243f9e274356f5ccbc5c675f6fe470094913f2e141858f419d6b';
 
 const VERSION = 1;
 const FILE = 'world.json';
@@ -101,9 +103,33 @@ function assertAgentTemplateState(state, template) {
   }
 }
 
+function assertReproductionState(state, config) {
+  const integer = n => Number.isSafeInteger(n) && n >= 0;
+  const simulation = state.simulation;
+  if (!integer(simulation.birthCount) || !integer(simulation.nextBirthId)
+    || simulation.nextBirthId <= config.agents.count
+    || !integer(simulation.birthRngState) || simulation.birthRngState > 0xffffffff) {
+    throw new Error('Invalid snapshot reproduction counters');
+  }
+  for (const agent of state.agents) {
+    if (!Array.isArray(agent.parentIds) || ![0, 2].includes(agent.parentIds.length)
+      || agent.parentIds.some(id => typeof id !== 'string' || !/^a-\d+$/.test(id) || id === agent.id)
+      || (agent.parentIds.length === 2 && agent.parentIds[0] === agent.parentIds[1])
+      || (agent.birthTick > 0 && agent.parentIds.length !== 2)
+      || (agent.lastBirthTick !== null && (!integer(agent.lastBirthTick)
+        || agent.lastBirthTick < agent.birthTick || agent.lastBirthTick > simulation.tickCount))) {
+      throw new Error(`Invalid snapshot reproduction state: ${agent.id}`);
+    }
+    const match = /^a-(\d+)$/.exec(agent.id);
+    if (match && Number(match[1]) >= simulation.nextBirthId) {
+      throw new Error('Invalid snapshot birth ID counter');
+    }
+  }
+}
+
 function createSnapshotStore(directory, config, objectCatalog, {
   legacyConfig = null, previousTickMs = null, behaviorCatalog = loadBehaviorCatalog(),
-  agentTemplate = loadAgentTemplate(),
+  agentTemplate = loadAgentTemplate(), reproductionPolicy = loadReproductionPolicy(),
 } = {}) {
   fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
   const primary = path.join(directory, FILE);
@@ -151,6 +177,13 @@ function createSnapshotStore(directory, config, objectCatalog, {
     if (document.agentTemplateHash === undefined && agentTemplate.hash !== LEGACY_COMPATIBLE_AGENT_HASH) {
       throw new Error('Snapshot agent template mismatch: legacy snapshot requires the built-in template');
     }
+    if (document.reproductionHash !== undefined && document.reproductionHash !== reproductionPolicy.hash) {
+      throw new Error('Snapshot reproduction policy mismatch; restore the pinned policy or start a new world');
+    }
+    if (document.reproductionHash === undefined
+      && reproductionPolicy.hash !== LEGACY_COMPATIBLE_REPRODUCTION_HASH) {
+      throw new Error('Snapshot reproduction policy mismatch: legacy snapshot requires the built-in policy');
+    }
     if (document.climateModelVersion !== undefined && document.climateModelVersion !== CLIMATE_MODEL_VERSION) {
       throw new Error(`Snapshot climate model version ${document.climateModelVersion} is incompatible with ${CLIMATE_MODEL_VERSION}`);
     }
@@ -159,6 +192,7 @@ function createSnapshotStore(directory, config, objectCatalog, {
     assertState(document.state);
     assertBehaviorStates(document.state, behaviorCatalog);
     if (document.agentTemplateHash !== undefined) assertAgentTemplateState(document.state, agentTemplate);
+    if (document.reproductionHash !== undefined) assertReproductionState(document.state, config);
     return document.state;
   }
 
@@ -214,10 +248,12 @@ function createSnapshotStore(directory, config, objectCatalog, {
     assertState(state);
     assertBehaviorStates(state, behaviorCatalog);
     assertAgentTemplateState(state, agentTemplate);
+    assertReproductionState(state, config);
     const checksum = crypto.createHash('sha256').update(JSON.stringify(state)).digest('hex');
     return JSON.stringify({ version: VERSION, configHashVersion: 2, configHash,
       catalogHash: objectCatalog.hash, behaviorHash: behaviorCatalog.hash,
       agentTemplateHash: agentTemplate.hash,
+      reproductionHash: reproductionPolicy.hash,
       climateModelVersion: CLIMATE_MODEL_VERSION, checksum, state });
   }
 

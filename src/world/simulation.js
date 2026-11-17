@@ -12,6 +12,7 @@ const { canDrinkAt, createWaterGuide } = require('./water');
 const { isCellPathable } = require('./agents');
 const { wrap } = require('../utils/wrap');
 const { createBehaviorScheduler } = require('./behaviorScheduler');
+const { createReproduction } = require('./reproduction');
 const {
   decayNeeds,
   tickAction,
@@ -29,6 +30,7 @@ function createSimulation(world, onTick = () => {}) {
   const tickMs = simConfig.tickMs || 200;
   const rng = splitmix32(config.seed ^ 0x6d2b79f5);
   const behaviors = createBehaviorScheduler(world.behaviorCatalog, rng);
+  const reproduction = createReproduction(world);
   const waterGuide = createWaterGuide(world.terrain, config);
 
   let tickCount = 0;
@@ -106,6 +108,10 @@ function createSimulation(world, onTick = () => {}) {
       agents.removeById(id);
       deathCount++;
     }
+
+    // Newborns join after the adult update loop, so their first needs and
+    // perception update happens on the next authoritative tick.
+    reproduction.tick(tickCount);
 
     if (tickCount % 100 === 0) {
       const alive = agents.listAll().length;
@@ -368,12 +374,14 @@ function createSimulation(world, onTick = () => {}) {
     if (intervalId) clearInterval(intervalId);
     intervalId = null;
   }
-  function snapshot() { return { tickCount, deathCount, rngState: rng.getState(), worldId }; }
+  function snapshot() { return { tickCount, deathCount, rngState: rng.getState(), worldId,
+    ...reproduction.snapshot() }; }
   function restore(state) {
     tickCount = state.tickCount;
     deathCount = state.deathCount;
     rng.setState(state.rngState);
     worldId = state.worldId || randomUUID();
+    reproduction.restore(state);
   }
 
   function getStatus() {
@@ -387,6 +395,8 @@ function createSimulation(world, onTick = () => {}) {
       lastTickAt,
       agentCount: agents.listAll().length,
       deathCount,
+      birthCount: reproduction.getBirthCount(),
+      populationCap: reproduction.getPopulationCap(),
       worldId,
     };
   }

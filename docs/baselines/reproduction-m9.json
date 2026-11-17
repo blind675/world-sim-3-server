@@ -1,0 +1,76 @@
+{
+  "reportVersion": 1,
+  "method": "offline synthetic adult clock; ordinary initial positions and needs; no HTTP or production volume writes",
+  "limits": "The 30 days before adulthood are skipped, so this is a capacity and rule exercise rather than natural survival or stable-population evidence. Timing and RSS vary by machine.",
+  "settings": {
+    "seeds": [
+      20260420,
+      20260421,
+      20260422
+    ],
+    "ticks": 360,
+    "output": "docs/baselines/reproduction-m9.json"
+  },
+  "seeds": [
+    {
+      "seed": 20260420,
+      "firstAdultTick": 10800,
+      "ticksRun": 360,
+      "births": 10,
+      "deaths": 0,
+      "finalLivingAgents": 60,
+      "maxLivingAgents": 60,
+      "populationCap": 60,
+      "foodServingsConsumed": 4,
+      "waterActionTicks": 222,
+      "parentHungerCost": 1.6,
+      "parentThirstCost": 0.8,
+      "tickP50Ms": 74.3,
+      "tickP95Ms": 244.78,
+      "peakSampledRssBytes": 222740480,
+      "initialPrimaryBytes": 34546,
+      "finalPrimaryBytes": 991058,
+      "backupBytes": 34546
+    },
+    {
+      "seed": 20260421,
+      "firstAdultTick": 10800,
+      "ticksRun": 360,
+      "births": 10,
+      "deaths": 0,
+      "finalLivingAgents": 60,
+      "maxLivingAgents": 60,
+      "populationCap": 60,
+      "foodServingsConsumed": 2,
+      "waterActionTicks": 216,
+      "parentHungerCost": 1.6,
+      "parentThirstCost": 0.8,
+      "tickP50Ms": 75.83,
+      "tickP95Ms": 287.02,
+      "peakSampledRssBytes": 314888192,
+      "initialPrimaryBytes": 34589,
+      "finalPrimaryBytes": 1130586,
+      "backupBytes": 34589
+    },
+    {
+      "seed": 20260422,
+      "firstAdultTick": 10800,
+      "ticksRun": 360,
+      "births": 10,
+      "deaths": 0,
+      "finalLivingAgents": 60,
+      "maxLivingAgents": 60,
+      "populationCap": 60,
+      "foodServingsConsumed": 3,
+      "waterActionTicks": 215,
+      "parentHungerCost": 1.6,
+      "parentThirstCost": 0.8,
+      "tickP50Ms": 88.06,
+      "tickP95Ms": 357.3,
+      "peakSampledRssBytes": 357482496,
+      "initialPrimaryBytes": 34574,
+      "finalPrimaryBytes": 1186510,
+      "backupBytes": 34574
+    }
+  ]
+}

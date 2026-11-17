@@ -2,8 +2,8 @@
 
 // In-memory agent store for Milestone 3.
 //
-// Agents are spawned deterministically from the world seed at startup (no
-// runtime respawn yet). Each agent keeps an A* path and traverses a bounded
+// Initial agents are spawned deterministically from the world seed. Each
+// agent keeps an A* path and traverses a bounded
 // segment of it every two ticks. Chunk indexes hold the segment endpoint.
 
 const { splitmix32 } = require('../utils/prng');
@@ -39,6 +39,8 @@ function createAgentStore(config, terrain, chunkIndex, agentTemplate = loadAgent
 
   const byId = new Map();
   const all = []; // preserves spawn order
+  const defaultTraits = Object.fromEntries(Object.entries(agentTemplate.inheritedTraits)
+    .map(([key, bounds]) => [key, bounds.default]));
 
   function lifespanFor(id) {
     const span = agentTemplate.lifespanDays.max - agentTemplate.lifespanDays.min + 1;
@@ -53,6 +55,40 @@ function createAgentStore(config, terrain, chunkIndex, agentTemplate = loadAgent
   function stageAt(agent, tick) {
     const age = ageAt(agent, tick);
     return [...agentTemplate.lifeStages].reverse().find(stage => age >= stage.startDay).id;
+  }
+
+  function makeAgent({ id, x, y, facing, sex, birthTick = 0, lifespanDays = lifespanFor(id),
+    traits = { ...defaultTraits, circadianType: circadianTypeFor(seed, id) }, parentIds = [] }) {
+    return {
+      id, x, y, facing, sex,
+      templateId: agentTemplate.id, birthTick, lifespanDays, parentIds,
+      lastBirthTick: null,
+      state: 'idle', currentGoal: null, currentAction: null,
+      behaviorState: null, behaviorCooldowns: {}, targetId: null,
+      path: [], pathIndex: 0, inventory: [], memory: [],
+      hunger: 0, thirst: 0, tiredness: 0, dead: false,
+      actionTargetId: null, actionTicksRemaining: 0,
+      traits,
+      movementStartPos: null, movementStartTick: null, targetPos: null,
+      currentMovementStep: 0, movementTargetIndex: null,
+      _cx: Math.floor(x / chunkSize), _cy: Math.floor(y / chunkSize),
+    };
+  }
+
+  function addAgent(agent) {
+    if (byId.has(agent.id)) throw new Error(`Duplicate agent ID ${agent.id}`);
+    byId.set(agent.id, agent);
+    all.push(agent);
+    chunkIndex.addAgentId(agent._cx, agent._cy, agent.id);
+    return agent;
+  }
+
+  function spawnOffspring(data) {
+    if (all.some(a => a.x === data.x && a.y === data.y)
+      || !isCellPathable(terrain.cellAt(data.x, data.y), deepWaterThreshold)) {
+      throw new Error('Birth cell must be free and walkable');
+    }
+    return addAgent(makeAgent(data));
   }
 
 
@@ -101,50 +137,9 @@ function createAgentStore(config, terrain, chunkIndex, agentTemplate = loadAgent
         && cell.groundType !== 'tall_grass') continue;
 
       const id = `a-${spawned + 1}`;
-      const cx = Math.floor(x / chunkSize);
-      const cy = Math.floor(y / chunkSize);
-      const agent = {
-        id,
-        x,
-        y,
+      addAgent(makeAgent({ id, x, y,
         facing: Math.floor(rng() * 4) * (Math.PI / 2),
-        sex: rng() < 0.5 ? 'female' : 'male',
-        templateId: agentTemplate.id,
-        birthTick: 0,
-        lifespanDays: lifespanFor(id),
-        state: 'idle',
-        currentGoal: null,
-        currentAction: null,
-        behaviorState: null,
-        behaviorCooldowns: {},
-        targetId: null,
-        path: [],
-        pathIndex: 0,
-        inventory: [],
-        memory: [],
-        hunger: 0,
-        thirst: 0,
-        tiredness: 0,
-        dead: false,
-        // M5 timed-action state. When state is eating/drinking/resting,
-        // actionTargetId is the object being consumed and ticksRemaining
-        // counts down to completion.
-        actionTargetId: null,
-        actionTicksRemaining: 0,
-        traits: { ...Object.fromEntries(Object.entries(agentTemplate.inheritedTraits)
-          .map(([key, bounds]) => [key, bounds.default])), circadianType: circadianTypeFor(seed, id) },
-        // Movement tracking for interpolation
-        movementStartPos: null,
-        movementStartTick: null,
-        targetPos: null,
-        currentMovementStep: 0,
-        movementTargetIndex: null,
-        _cx: cx,
-        _cy: cy,
-      };
-      byId.set(id, agent);
-      all.push(agent);
-      chunkIndex.addAgentId(cx, cy, id);
+        sex: rng() < 0.5 ? 'female' : 'male' }));
       spawned++;
     }
   }
@@ -164,6 +159,8 @@ function createAgentStore(config, terrain, chunkIndex, agentTemplate = loadAgent
       ageDays: Math.floor(ageAt(a, currentTick) * 10) / 10,
       lifeStage: stageAt(a, currentTick),
       lifespanDays: a.lifespanDays,
+      parentIds: a.parentIds,
+      lastBirthTick: a.lastBirthTick,
       state: a.state,
       currentGoal: a.currentGoal,
       currentAction: a.currentAction,
@@ -189,7 +186,7 @@ function createAgentStore(config, terrain, chunkIndex, agentTemplate = loadAgent
       movementStartTick: a.movementStartTick,
       currentTick: currentTick,
       moveSpeed: a.traits.moveSpeed,
-      moveCellsPerStep,
+      moveCellsPerStep: Math.max(1, Math.round(moveCellsPerStep * a.traits.moveSpeed)),
       isMoving: a.state === 'moving' && a.movementStartPos !== null,
     };
   }
@@ -223,6 +220,8 @@ function createAgentStore(config, terrain, chunkIndex, agentTemplate = loadAgent
       agent.templateId ??= agentTemplate.id;
       agent.birthTick ??= 0;
       agent.lifespanDays ??= lifespanFor(agent.id);
+      agent.parentIds ??= [];
+      agent.lastBirthTick ??= null;
       delete agent.age; // legacy static field; public age is derived from the saved tick
       if (agent.templateId !== agentTemplate.id || !Number.isSafeInteger(agent.birthTick)
         || agent.birthTick < 0 || agent.birthTick > tickCount
@@ -230,6 +229,14 @@ function createAgentStore(config, terrain, chunkIndex, agentTemplate = loadAgent
         || agent.lifespanDays < agentTemplate.lifespanDays.min
         || agent.lifespanDays > agentTemplate.lifespanDays.max) {
         throw new Error(`Snapshot has invalid agent identity or age for ${agent.id}`);
+      }
+      if (!Array.isArray(agent.parentIds) || ![0, 2].includes(agent.parentIds.length)
+        || agent.parentIds.some(id => typeof id !== 'string' || !/^a-\d+$/.test(id) || id === agent.id)
+        || (agent.parentIds.length === 2 && agent.parentIds[0] === agent.parentIds[1])
+        || (agent.birthTick > 0 && agent.parentIds.length !== 2)
+        || (agent.lastBirthTick !== null && (!Number.isSafeInteger(agent.lastBirthTick)
+          || agent.lastBirthTick < agent.birthTick || agent.lastBirthTick > tickCount))) {
+        throw new Error(`Snapshot has invalid parent or cooldown state for ${agent.id}`);
       }
       agent.behaviorState ??= null;
       agent.behaviorCooldowns ??= {};
@@ -247,9 +254,7 @@ function createAgentStore(config, terrain, chunkIndex, agentTemplate = loadAgent
       agent.movementTargetIndex ??= null;
       agent._cx = Math.floor(agent.x / chunkSize);
       agent._cy = Math.floor(agent.y / chunkSize);
-      byId.set(agent.id, agent);
-      all.push(agent);
-      chunkIndex.addAgentId(agent._cx, agent._cy, agent.id);
+      addAgent(agent);
     }
   }
 
@@ -287,7 +292,8 @@ function createAgentStore(config, terrain, chunkIndex, agentTemplate = loadAgent
 
     const targetIndex = agent.movementStartPos
       ? (agent.movementTargetIndex ?? agent.pathIndex)
-      : Math.min(agent.path.length - 1, agent.pathIndex + moveCellsPerStep - 1);
+      : Math.min(agent.path.length - 1,
+        agent.pathIndex + Math.max(1, Math.round(moveCellsPerStep * agent.traits.moveSpeed)) - 1);
     const next = agent.path[targetIndex];
     const nx = wrap(next.x, width);
     const ny = wrap(next.y, height);
@@ -380,6 +386,7 @@ function createAgentStore(config, terrain, chunkIndex, agentTemplate = loadAgent
 
   return {
     spawnInitial,
+    spawnOffspring,
     listAll,
     getById,
     setPath,
