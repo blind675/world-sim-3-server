@@ -1,0 +1,34 @@
+{
+  "reportVersion": 1,
+  "method": "offline synthetic adult clock; ordinary initial positions and needs; no HTTP or production volume writes",
+  "limits": "The 30 days before adulthood are skipped, so this is a capacity and rule exercise rather than natural survival or stable-population evidence. Timing and RSS vary by machine.",
+  "settings": {
+    "seeds": [
+      20260420
+    ],
+    "ticks": 2500,
+    "output": "docs/baselines/reproduction-m9-long.json"
+  },
+  "seeds": [
+    {
+      "seed": 20260420,
+      "firstAdultTick": 10800,
+      "ticksRun": 2500,
+      "births": 10,
+      "deaths": 0,
+      "finalLivingAgents": 60,
+      "maxLivingAgents": 60,
+      "populationCap": 60,
+      "foodServingsConsumed": 230,
+      "waterActionTicks": 1418,
+      "parentHungerCost": 1.6,
+      "parentThirstCost": 0.8,
+      "tickP50Ms": 70.24,
+      "tickP95Ms": 204.4,
+      "peakSampledRssBytes": 373149696,
+      "initialPrimaryBytes": 34546,
+      "finalPrimaryBytes": 1834111,
+      "backupBytes": 34546
+    }
+  ]
+}

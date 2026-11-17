@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "id": "ground_bird_reproduction",
+  "revision": 1,
+  "minimumAgeDays": 30,
+  "maxPopulation": 60,
+  "checkIntervalTicks": 20,
+  "partnerRadiusCells": 20,
+  "cooldownDays": 7,
+  "maxHunger": 0.35,
+  "maxThirst": 0.3,
+  "hungerCost": 0.08,
+  "thirstCost": 0.04,
+  "mutation": {
+    "visionRange": 2,
+    "memoryCapacity": 5,
+    "memoryDecayRate": 0.002,
+    "moveSpeed": 0.05,
+    "lifespanDays": 20
+  }
+}

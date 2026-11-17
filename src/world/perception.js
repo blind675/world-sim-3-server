@@ -14,6 +14,7 @@
 
 const { wrap } = require('../utils/wrap');
 const { shoreCandidates } = require('./water');
+const { effectiveVisionRange } = require('./rhythm');
 
 // Object types that block line-of-sight when they sit on an intermediate
 // cell between the observer and the target. Trees + rocks are opaque.
@@ -32,7 +33,7 @@ function shortestDelta(a, b, size) {
 // Is candidate (cx,cy) inside the agent's vision envelope?
 // Returns { visible: boolean, distance: number, inNear: boolean } with the
 // signed deltas used for later callers if needed.
-function withinEnvelope(agent, cx, cy, width, height, perceptionCfg) {
+function withinEnvelope(agent, cx, cy, width, height, perceptionCfg, visionRange = agent.traits.visionRange) {
   const dx = shortestDelta(agent.x, cx, width);
   const dy = shortestDelta(agent.y, cy, height);
   const distSq = dx * dx + dy * dy;
@@ -43,7 +44,7 @@ function withinEnvelope(agent, cx, cy, width, height, perceptionCfg) {
     return { visible: true, distance: Math.sqrt(distSq), inNear: true, dx, dy };
   }
 
-  const range = agent.traits.visionRange;
+  const range = visionRange;
   if (distSq > range * range) {
     return { visible: false, distance: Math.sqrt(distSq), inNear: false, dx, dy };
   }
@@ -141,7 +142,7 @@ function createPerception(world) {
 
   // Gather candidate entities (objects + other agents) whose cells lie in
   // the vision bbox around the agent.
-  function gatherCandidates(agent, bboxX, bboxY, bboxW, bboxH) {
+  function gatherCandidates(agent, bboxX, bboxY, bboxW, bboxH, range) {
     const out = [];
 
     // Objects of all types (trees, rocks, food, water_source, rest_spot).
@@ -152,7 +153,7 @@ function createPerception(world) {
       if (o.type === 'water_source') continue;
       out.push({ id: o.id, type: o.type, x: o.x, y: o.y });
     }
-    out.push(...shoreCandidates(terrain, config, agent, agent.traits.visionRange));
+    out.push(...shoreCandidates(terrain, config, agent, range));
 
     // Other agents via the chunk index. Filter self out.
     const chunks = chunkIndex.chunksInRect(bboxX, bboxY, bboxW, bboxH);
@@ -172,8 +173,9 @@ function createPerception(world) {
     return out;
   }
 
-  function perceiveAgent(agent) {
-    const range = agent.traits.visionRange;
+  function perceiveAgent(agent, currentTick) {
+    const range = currentTick === undefined ? agent.traits.visionRange
+      : effectiveVisionRange(agent, config, currentTick);
     // Bounding box in UNWRAPPED coords; queryRect + chunksInRect both handle
     // wrap internally.
     const bboxX = agent.x - range;
@@ -182,11 +184,11 @@ function createPerception(world) {
     const bboxH = range * 2 + 1;
 
     const occluders = buildOccluderSet(bboxX, bboxY, bboxW, bboxH);
-    const candidates = gatherCandidates(agent, bboxX, bboxY, bboxW, bboxH);
+    const candidates = gatherCandidates(agent, bboxX, bboxY, bboxW, bboxH, range);
 
     const visible = [];
     for (const c of candidates) {
-      const env = withinEnvelope(agent, c.x, c.y, width, height, perceptionCfg);
+      const env = withinEnvelope(agent, c.x, c.y, width, height, perceptionCfg, range);
       if (!env.visible) continue;
       // An opaque object sitting on its own cell should still be visible —
       // the occluder test only applies to CELLS BETWEEN observer and target.

@@ -22,6 +22,16 @@ test('production control routes require a valid bearer token', async () => {
     assert.equal(catalogue.schemaVersion, 1);
     assert.ok(catalogue.definitions.some(def => def.id === 'pine_tree'));
     assert.match(catalogue.hash, /^[0-9a-f]{64}$/);
+    const behaviors = await (await fetch(base + '/api/behavior-definitions')).json();
+    assert.equal(behaviors.schemaVersion, 1);
+    assert.ok(behaviors.definitions.some(def => def.id === 'look_around'));
+    assert.match(behaviors.hash, /^[0-9a-f]{64}$/);
+    const template = await (await fetch(base + '/api/agent-template')).json();
+    assert.equal(template.id, 'ground_bird');
+    assert.match(template.hash, /^[0-9a-f]{64}$/);
+    const reproduction = await (await fetch(base + '/api/reproduction-policy')).json();
+    assert.equal(reproduction.maxPopulation, 60);
+    assert.match(reproduction.hash, /^[0-9a-f]{64}$/);
     const objects = await (await fetch(base + '/api/entities/in-view?x=0&y=0&w=64&h=64&types=tree,rock,food')).json();
     assert.ok(objects.objects.length > 0);
     assert.ok(objects.objects.every(object => catalogue.definitions.some(def => def.id === object.definitionId && def.behavior === object.type)));
@@ -49,6 +59,11 @@ test('production control routes require a valid bearer token', async () => {
     const list = await (await fetch(base + '/api/agents')).json();
     const agent = list.agents[0];
     assert.equal(agent.type, 'agent');
+    assert.equal(agent.templateId, template.id);
+    assert.equal(agent.lifeStage, 'juvenile');
+    assert.equal(agent.age, 0);
+    assert.deepEqual(agent.parentIds, []);
+    assert.ok(Number.isFinite(agent.temperatureC));
     const view = await (await fetch(base + `/api/entities/in-view?x=${agent.x}&y=${agent.y}&w=2&h=2&types=agent`)).json();
     assert.ok(view.objects.some(entity => entity.id === agent.id && entity.type === 'agent'));
     assert.ok(Number.isFinite(view.serverTime));
@@ -56,6 +71,7 @@ test('production control routes require a valid bearer token', async () => {
     const detail = await (await fetch(base + `/api/agents/${agent.id}`)).json();
     assert.ok(Number.isFinite(detail.serverTime));
     assert.ok(Number.isFinite(detail.lastTickAt));
+    assert.equal(detail.temperatureC, agent.temperatureC);
     for (const route of ['/api/agents/a-1/path', '/api/sim/step', '/api/admin/world/reset']) {
       const denied = await fetch(base + route, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
       assert.equal(denied.status, 401);
@@ -64,6 +80,10 @@ test('production control routes require a valid bearer token', async () => {
       assert.notEqual(accepted.status, 500);
     }
     const beforeReset = await (await fetch(base + '/api/simulation/status')).json();
+    assert.equal(beforeReset.birthCount, 0);
+    assert.equal(beforeReset.populationCap, 60);
+    assert.ok(['clear', 'rain', 'heatwave', 'cold_front'].includes(beforeReset.weather));
+    assert.ok(Number.isFinite(beforeReset.temperatureC));
     const stale = await fetch(base + '/api/admin/world/reset', {
       method: 'POST', headers: { authorization: 'Bearer test-only-control-secret', 'content-type': 'application/json' },
       body: JSON.stringify({ confirmation: 'RESET WORLD', worldId: 'stale' }),

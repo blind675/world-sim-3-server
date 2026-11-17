@@ -5,6 +5,7 @@ Node.js + Express backend for the FlatWorld life simulation. Provides authoritat
 This is the backend repository for a three-repository project. The [web client](https://github.com/blind675/world-sim-3-client) and [mobile client](https://github.com/blind675/world-sim-3-mobile) are separate viewers. Shared project context is in [Project Overview](docs/PROJECT_OVERVIEW.md), [Product Requirements](docs/PRODUCT_REQUIREMENTS.md), and the [Build Checklist](docs/BUILD_CHECKLIST.md). The requirements and checklist are historical planning documents; code and tests describe current behavior.
 
 Routine work is committed to `staging`; `main` is reserved for an explicitly requested production release. See the [release workflow](docs/RELEASE_WORKFLOW.md) and the [current simulation roadmap](docs/SIMULATION_ROADMAP.md).
+The former combined population milestone is now split into four deliverables in the [population plan](docs/POPULATION_PLAN.md).
 
 ## Quick Start
 
@@ -38,6 +39,7 @@ npm run dev
 - `src/world/perception.js` - Agent vision and perception system
 - `src/world/memory.js` - Agent memory with confidence decay
 - `src/world/needs.js` - Survival needs (hunger, thirst, tiredness)
+- `src/world/behaviorCatalog.js` and `behaviorScheduler.js` - Validated behavior rules and bounded action scheduling
 - `src/routes/` - API endpoint handlers
 
 ## Configuration
@@ -62,10 +64,12 @@ All configuration via environment variables. See `.env.example` for complete lis
 
 ### Survival (cassowary-inspired baseline)
 - Hunger reaches its lethal limit after seven simulated days without food; thirst after three days without water. Agents start seeking both much earlier.
-- Tiredness rises over two days but is not directly lethal. Agents can rest on any walkable cell; a future day/night milestone will add a preferred sleep schedule.
+- Tiredness rises over two days but is not directly lethal. Agents can rest on any walkable cell. A deterministic diurnal or nocturnal preference makes them seek sleep in their inactive half of the day; severe tiredness still triggers off-schedule rest. Night and fatigue shorten vision, with better night adaptation for nocturnal agents. See [Daily Rhythm](docs/DAILY_RHYTHM.md).
 - Agents can drink while standing in shallow water or on walkable terrain adjacent to water. Generated water-source and rest-spot objects remain visible for compatibility but are no longer required for survival.
 - Thirsty agents without a remembered shoreline use a bounded coarse terrain search (up to 640 m) for a waterward heading. This hint is not stored as a sighting; the agent must still reach and perceive a drinkable shore. Fatal hunger and thirst take precedence over nonfatal tiredness.
 - A completed fruit meal also reduces thirst by 0.2 by default; this does not count as drinking in the survival baseline. Tune with `FRUIT_HYDRATION` only after comparing fixed seeds.
+- Agents can carry one fruit from a berry bush, then eat it after moving. Pickup changes source stock once; carried fruit is saved with the agent. [Inventory model](docs/INVENTORY_MODEL.md) defines the action, capacity, and death rules.
+- Local air temperature follows simulated time and elevation. Daily seeded weather can cool or warm it; cold slightly increases hunger, heat slightly increases thirst, and rain shortens sight. See [Temperature and Weather](docs/CLIMATE_MODEL.md).
 
 ## Docker Deployment
 
@@ -90,26 +94,34 @@ docker-compose up -d
 
 ### Health & Status
 - `GET /api/health` - Basic health check
-- `GET /api/simulation/status` - Simulation status (tick count, deaths)
+- `GET /api/simulation/status` - Simulation status (tick count, deaths, world clock, ambient light, weather, sea-level air temperature)
 
 ### World Data
 - `GET /api/world/meta` - World metadata
 - `GET /api/world/viewport` - Terrain viewport
 - `POST /api/world/chunks` - Batch terrain chunks, generated on demand
 - `GET /api/world/cell` - Single cell data
-- `GET /api/world/statistics` - Agent, death, and generated-area resource statistics
+- `GET /api/world/statistics` - Agent, death, and generated-area resource statistics. `deaths.total` is the durable cumulative count; `deaths.byCause` covers the latest `deaths.retainedRecords` (up to 1,000) and includes `old_age`.
 
 ### Entities
 - `GET /api/entities/in-view` - Objects in viewport
 - `GET /api/entities/:id` - Object detail; food includes current stock and regrowth status
 - `GET /api/object-definitions` - Versioned, read-only object catalogue
+- `GET /api/behavior-definitions` - Versioned, read-only behavior catalogue
+- `GET /api/agent-template` - Versioned, read-only ground-bird template
+- `GET /api/reproduction-policy` - Versioned, read-only breeding limits and costs
 - `GET /api/agents` - All agents
 - `GET /api/agents/:id` - Agent details
 
 Agent summaries now include `type: "agent"`. The in-view response and agent detail include `serverTime` and `lastTickAt` (Unix milliseconds) so viewers can animate each two-tick movement step between polls. These fields describe the current instance's tick clock and are reset appropriately after a snapshot restore.
+Agent list and detail responses include `traits.circadianType` and `effectiveVisionRange`; the debug perception route reports that same effective range. The preference is assigned deterministically and saved, while current vision follows the clock and tiredness.
+Agent list and detail responses also include local `temperatureC`. The value is derived from the current cell and tick, so viewers can show it without adding mutable snapshot state.
+Agent responses also include the active `behavior` record. The checked-in [behavior catalogue](config/behavior-catalog.json) defines bounded idle/look-around action sequences, weighted exploration, and named survival policies. A stay or 90-degree turn consumes one tick; movement, eating, drinking, and resting retain their existing authoritative tick timing. Urgent needs interrupt leisure, and saved behavior progress resumes after a restart. `BEHAVIOR_CATALOG_PATH` can select another validated file at startup, but snapshots pin its hash; changing it requires a deliberate migration or reset. Public viewers cannot edit live behavior rules. See the [behavior model](docs/BEHAVIOR_MODEL.md) for timing and interruption details.
+Agent responses now include `templateId`, `species`, `birthTick`, simulated `age` and `ageDays`, `lifeStage`, and `lifespanDays`. Age derives from the saved tick and `SIM_TICKS_PER_DAY`; lifespan is a potential inherited trait and does not cause death yet. The validated [agent template](config/agent-template.json) supplies stage thresholds and trait bounds. Snapshots pin its hash; old agents migrate without resetting the world. See [agent template and life stages](docs/AGENT_TEMPLATE.md).
+Eligible adults can now reproduce when nearby, healthy, off cooldown, and below a hard population cap. Agent responses include `parentIds` and `lastBirthTick`; simulation status includes cumulative `birthCount` and `populationCap`. Successful births add bounded hunger and thirst to both parents, and the newborn inherits numeric traits within the template's bounds. The [reproduction policy](config/reproduction-policy.json) is checked in and pinned in snapshots. Older snapshots migrate without replacing the world. See [reproduction and inheritance](docs/REPRODUCTION_MODEL.md).
 - `POST /api/agents/:id/path` - Set agent path
 
-Object instances retain their existing `type` and stable id, and now expose a `definitionId` for names, colours, sprites, vision blocking, and terrain preferences. The built-in [catalogue](config/object-catalog.json) adds pine trees, slate rocks, and blueberry bushes without changing object placement or resource behavior. Variant weights choose appearances among positions generated by the existing forest, outcrop, berry, shoreline, and rest strategies; they do not change object counts. `OBJECT_CATALOG_PATH` can load an alternate validated JSON file at startup. Snapshots pin the catalogue hash, so incompatible edits require an offline migration or a new world.
+Object instances expose a `definitionId` for names, colours, sprites, vision blocking, and terrain preferences. The built-in [object catalogue](config/object-catalog.json) preserves legacy positions and adds habitat-specific mushrooms, reeds, and fallen wood at new deterministic positions. Dynamic mushroom offspring can rot. `OBJECT_CATALOG_PATH` can load an alternate validated JSON file at startup. Snapshots pin the catalogue hash, so incompatible edits require an offline migration or a new world.
 
 ### Simulation
 - `POST /api/sim/step` - Manual simulation step
@@ -125,6 +137,7 @@ Object instances retain their existing `type` and stable id, and now expose a `d
 - `npm test` - World generation regression tests
 - `npm run bench` - Small terrain chunk benchmark
 - `npm run baseline -- --output /tmp/survival.json` - Offline, fixed-seed survival benchmark (defaults to three seeds, 2,500 ticks, and the configured agent count). Use `--seeds 7,8`, `--ticks 500`, `--agents 10`, `--checkpoint-every 100`, and `--output path.json` to adjust a run. It does not start the server, tick timer, or write to the production snapshot volume. See [the baseline report](docs/baselines/README.md) for metric definitions and results.
+- `npm run baseline:births -- --output /tmp/births.json` - Offline, three-seed mature-population capacity run. It advances the clock to adulthood without simulating the preceding days, then measures births, resource demand, and snapshot growth without touching the production volume.
 
 ### Testing
 ```bash
@@ -180,15 +193,4 @@ Set `DEBUG=*` environment variable for verbose logging.
 
 ## Milestone Status
 
-- ✅ **Milestone 0**: Core infrastructure
-- ✅ **Milestone 1**: Terrain generation
-- ✅ **Milestone 2**: World objects
-- ✅ **Milestone 3**: Agent movement
-- ✅ **Milestone 4**: Perception & memory
-- ✅ **Milestone 5**: Survival loop
-
-## Next Milestones
-
-- Milestone 6: Multi-agent interaction
-- Milestone 7: Reproduction & inheritance
-- Milestone 8: WebSocket live updates
+See the [current roadmap](docs/SIMULATION_ROADMAP.md) for the current milestone and remaining work. The older numbering in the historical PRD and build checklist is not the current implementation plan.

@@ -4,40 +4,44 @@
 //
 // Per-tick helpers for needs decay and timed eat/drink/rest actions.
 // Needs are stored on the agent as floats in [0, 1] where 0 means fully
-// satisfied and 1 means critical. When any need reaches 1.0 the agent is
-// marked dead (simulation removes it in the same tick).
+// satisfied and 1 means critical. Hunger or thirst at 1.0 kills an agent;
+// tiredness impairs perception but remains nonlethal.
 
 const { wrappedDistance } = require('../utils/wrap');
 const { canDrinkAt } = require('./water');
+const { isPreferredSleepTime } = require('./rhythm');
+const { thermalMultipliers } = require('./climate');
 
 // Maps the goal/action types to the need they satisfy so tickAction can
 // stay data-driven.
 const ACTION_TO_NEED = Object.freeze({
   eating: 'hunger',
+  eating_carried: 'hunger',
   drinking: 'thirst',
   resting: 'tiredness',
 });
 
 // Maps goal.type (set at decision time) -> action state (set on arrival).
 const GOAL_TO_ACTION = Object.freeze({
-  seek_food: 'eating',
+  seek_food: 'collecting_food',
   seek_water: 'drinking',
   seek_rest: 'resting',
 });
 
 // Maps the action state -> the object type the agent must be adjacent to.
 const ACTION_TO_OBJECT_TYPE = Object.freeze({
-  eating: 'food',
+  collecting_food: 'food',
   drinking: 'water_source',
   resting: 'rest_spot',
 });
 
 // Tiredness is a nonlethal deficit. Missing a night can impair an agent,
 // but starvation or dehydration are the direct survival failures.
-function decayNeeds(agent, config) {
+function decayNeeds(agent, config, temperatureC = 22) {
   const s = config.survival;
-  agent.hunger = Math.min(1, agent.hunger + s.hungerDecayRate);
-  agent.thirst = Math.min(1, agent.thirst + s.thirstDecayRate);
+  const thermal = thermalMultipliers(temperatureC);
+  agent.hunger = Math.min(1, agent.hunger + s.hungerDecayRate * thermal.hunger);
+  agent.thirst = Math.min(1, agent.thirst + s.thirstDecayRate * thermal.thirst);
   agent.tiredness = Math.min(1, agent.tiredness + s.tirednessDecayRate);
   if (agent.hunger >= 1 || agent.thirst >= 1) {
     agent.dead = true;
@@ -46,12 +50,20 @@ function decayNeeds(agent, config) {
 
 // Priority-ordered list of (need, goalType, threshold) triples. Thirst is
 // first when two fatal needs have the same time remaining.
-function buildPriorityList(config) {
+function buildPriorityList(agent, config, currentTick) {
   const s = config.survival;
+  const restThreshold = currentTick === undefined ? s.tirednessThreshold
+    : isPreferredSleepTime(agent, currentTick, config.simulation.ticksPerDay || 360)
+      ? Math.min(0.22, s.tirednessThreshold)
+      : Math.max(0.45, s.tirednessThreshold);
   return [
     { need: 'thirst', goal: 'seek_water', threshold: s.thirstThreshold },
-    { need: 'hunger', goal: 'seek_food', threshold: s.hungerThreshold },
-    { need: 'tiredness', goal: 'seek_rest', threshold: s.tirednessThreshold },
+    // Collect at the usual threshold, then hold the single fruit until a
+    // later meal. This leaves time to travel and avoids immediately eating
+    // the item on the tick after pickup.
+    { need: 'hunger', goal: 'seek_food', threshold: agent.inventory?.length
+      ? Math.max(s.hungerThreshold, 0.35) : s.hungerThreshold },
+    { need: 'tiredness', goal: 'seek_rest', threshold: restThreshold },
   ];
 }
 
@@ -66,15 +78,16 @@ const NEED_TO_MEMORY_TYPE = Object.freeze({
 // tiredness is not fatal, so choosing rest just because it reached 1 first
 // can leave an agent resting until it dies of thirst. Among hunger and thirst,
 // prefer the one with less time left at the configured decay rate.
-function pickUrgentNeed(agent, config) {
-  const priorities = buildPriorityList(config);
+function pickUrgentNeed(agent, config, currentTick, temperatureC = 22) {
+  const priorities = buildPriorityList(agent, config, currentTick);
+  const thermal = thermalMultipliers(temperatureC);
   const active = priorities.filter(p => agent[p.need] >= p.threshold);
   const fatal = active.filter(p => p.need !== 'tiredness');
   const choices = fatal.length ? fatal : active;
   let best = null;
   for (const p of choices) {
     const value = agent[p.need];
-    const rate = config.survival[`${p.need}DecayRate`];
+    const rate = config.survival[`${p.need}DecayRate`] * (thermal[p.need] || 1);
     const timeLeft = rate > 0 ? (1 - value) / rate : Infinity;
     if (!best || timeLeft < best.timeLeft) {
       best = { ...p, value, timeLeft };
@@ -100,11 +113,24 @@ function pickMemoryTargetForType(agent, memoryType) {
   return candidates[0];
 }
 
-// Called each tick while agent.state is eating / drinking / resting.
+// Called each tick while an agent collects or uses a resource.
 // Decrements the matching need by actionRestoreRate. Ends the action when
 // the duration elapses OR the need hits 0 OR the target becomes invalid.
 // Returns true if the action ended this tick.
 function tickAction(agent, objects, config, currentTick, terrain = null) {
+  if (agent.state === 'collecting_food') {
+    const target = agent.actionTargetId && objects.getById(agent.actionTargetId);
+    const canTake = target?.type === 'food' && (agent.inventory?.length || 0) === 0
+      && wrappedDistance(agent.x, agent.y, target.x, target.y, config.width, config.height) <= 1.5
+      && objects.isAvailable(target.id, currentTick);
+    if (canTake && objects.consumeFood(target.id, currentTick)) {
+      agent.inventory ??= [];
+      agent.inventory.push({ kind: 'fruit', sourceId: target.id,
+        definitionId: target.definitionId ?? null, pickedTick: currentTick });
+    }
+    endAction(agent, objects, false, currentTick, config.survival);
+    return true;
+  }
   const need = ACTION_TO_NEED[agent.state];
   if (!need) return false;
 
@@ -114,7 +140,8 @@ function tickAction(agent, objects, config, currentTick, terrain = null) {
   // Rest is possible on any walkable cell. Drinking uses adjacent terrain
   // water, including shallow water under the agent's own feet.
   const target = agent.actionTargetId ? objects.getById(agent.actionTargetId) : null;
-  const targetOk = agent.state === 'resting' ? true
+  const targetOk = agent.state === 'eating_carried' ? agent.inventory?.length === 1
+    : agent.state === 'resting' ? true
     : agent.state === 'drinking' && terrain ? canDrinkAt(terrain, config, agent.x, agent.y)
     : target
     && wrappedDistance(agent.x, agent.y, target.x, target.y, width, height) <= 1.5
@@ -141,12 +168,16 @@ function tickAction(agent, objects, config, currentTick, terrain = null) {
   return false;
 }
 
-// Clean up agent action state and apply depletion to food nodes when a
-// visit completes successfully.
+// Clean up action state. Direct meals consume source stock on completion;
+// carried meals already consumed their source stock at pickup.
 function endAction(agent, objects, completed, currentTick, survival) {
   if (completed && agent.state === 'eating' && agent.actionTargetId) {
     // A successful eat consumes one stock; depleted if that was the last.
     objects.consumeFood(agent.actionTargetId, currentTick);
+    agent.thirst = Math.max(0, agent.thirst - (survival.fruitHydration || 0));
+  }
+  if (completed && agent.state === 'eating_carried') {
+    agent.inventory.shift();
     agent.thirst = Math.max(0, agent.thirst - (survival.fruitHydration || 0));
   }
   if (agent.actionTargetId) objects.releaseResource(agent.id, agent.actionTargetId);
@@ -165,6 +196,7 @@ function beginActionIfArrived(agent, objects, config, currentTick, terrain = nul
   if (!goal) return false;
   const actionState = GOAL_TO_ACTION[goal.type];
   if (!actionState) return false;
+  if (actionState === 'collecting_food' && agent.inventory?.length) return false;
 
   if (actionState === 'resting' || (actionState === 'drinking' && terrain)) {
     if (actionState === 'drinking' && !canDrinkAt(terrain, config, agent.x, agent.y)) return false;
@@ -196,6 +228,11 @@ function beginActionIfArrived(agent, objects, config, currentTick, terrain = nul
   }
   if (!best) return false;
 
+  // Berry patches yield a portable fruit. Other edible food, such as the
+  // existing mushroom patch, retains its direct-eating action.
+  const actualAction = actionState === 'collecting_food' && objects.isFruitSource?.(best.id) === false
+    ? 'eating' : actionState;
+
   if (!objects.tryAcquireResource(agent.id, best.id)) {
     agent.state = 'waiting';
     agent.currentAction = 'waiting';
@@ -203,10 +240,10 @@ function beginActionIfArrived(agent, objects, config, currentTick, terrain = nul
     return true;
   }
 
-  agent.state = actionState;
-  agent.currentAction = actionState;
+  agent.state = actualAction;
+  agent.currentAction = actualAction;
   agent.actionTargetId = best.id;
-  agent.actionTicksRemaining = config.survival.actionTicks;
+  agent.actionTicksRemaining = actualAction === 'collecting_food' ? 1 : config.survival.actionTicks;
 
   return true;
 }

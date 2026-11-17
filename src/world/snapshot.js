@@ -3,6 +3,14 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const { loadBehaviorCatalog } = require('./behaviorCatalog');
+const { loadAgentTemplate } = require('./agentTemplate');
+const { loadReproductionPolicy } = require('./reproductionPolicy');
+const { CLIMATE_MODEL_VERSION } = require('./climate');
+const LEGACY_COMPATIBLE_BEHAVIOR_HASH = 'b769d2a92b8f9854cf88037741afd5d194b0979de6f8e989bf33a78c450bcfdc';
+const LEGACY_COMPATIBLE_AGENT_HASH = 'f850f2fd2f25b9b00322bfa8971c1d1d7dc5e06e99462540f8698d745b9de9ef';
+const LEGACY_COMPATIBLE_REPRODUCTION_HASH = '75f62d8df4a6243f9e274356f5ccbc5c675f6fe470094913f2e141858f419d6b';
+const M10_REPRODUCTION_HASH = 'deec1f8b0183e40d07f5b4780dc6835b8df8b84f78b3819563a127b6dc219868';
 
 const VERSION = 1;
 const FILE = 'world.json';
@@ -39,6 +47,23 @@ function assertState(state) {
     if (!a || typeof a.id !== 'string' || ids.has(a.id) || !integer(a.x) || !integer(a.y)
       || !Array.isArray(a.path) || !Array.isArray(a.memory) || !a.traits) throw new Error('Invalid snapshot agent');
     ids.add(a.id);
+    // Undefined is accepted for snapshots predating inventory. New worlds
+    // always save an array, and carrying is deliberately limited to one fruit.
+    if (a.inventory !== undefined && (!Array.isArray(a.inventory) || a.inventory.length > 1
+      || a.inventory.some(item => !item || Object.keys(item).length !== 4
+        || item.kind !== 'fruit' || typeof item.sourceId !== 'string'
+        || !item.sourceId || item.sourceId.length > 160
+        || !(item.definitionId === null || typeof item.definitionId === 'string')
+        || !integer(item.pickedTick) || item.pickedTick > state.simulation.tickCount))) {
+      throw new Error(`Invalid snapshot inventory: ${a.id}`);
+    }
+    if ((a.state === 'eating_carried' && (a.inventory?.length !== 1
+      || a.actionTargetId !== null || !integer(a.actionTicksRemaining)
+      || a.actionTicksRemaining < 1 || a.actionTicksRemaining > 3600))
+      || (a.state === 'collecting_food' && ((a.inventory?.length || 0) !== 0
+        || typeof a.actionTargetId !== 'string' || a.actionTicksRemaining !== 1))) {
+      throw new Error(`Invalid snapshot inventory action: ${a.id}`);
+    }
   }
   const foodIds = new Set();
   for (const node of state.objects.dynamicFood) {
@@ -52,7 +77,78 @@ function assertState(state) {
   }
 }
 
-function createSnapshotStore(directory, config, objectCatalog, { legacyConfig = null, previousTickMs = null } = {}) {
+function assertBehaviorStates(state, catalog) {
+  const tick = state.simulation.tickCount;
+  for (const agent of state.agents) {
+    const active = agent.behaviorState;
+    if (active != null) {
+      const def = catalog.get(active.id);
+      if (!def || !Number.isSafeInteger(active.startedTick) || active.startedTick < 0
+        || active.startedTick > tick || tick - active.startedTick > def.maxTicks
+        || !Number.isSafeInteger(active.stepIndex) || active.stepIndex < 0
+        || !Number.isSafeInteger(active.stepTicksLeft) || active.stepTicksLeft < 0
+        || (def.algorithm === 'sequence'
+          ? (active.stepIndex >= def.steps.length
+            || active.stepTicksLeft < 1
+            || active.stepTicksLeft > def.steps[active.stepIndex].ticks)
+          : active.stepIndex !== 0 || active.stepTicksLeft !== 0)) {
+        throw new Error('Invalid snapshot agent behavior');
+      }
+    }
+    if (agent.behaviorCooldowns != null) {
+      if (!agent.behaviorCooldowns || typeof agent.behaviorCooldowns !== 'object'
+        || Object.entries(agent.behaviorCooldowns).some(([id, until]) =>
+          catalog.get(id)?.kind !== 'leisure' || !Number.isSafeInteger(until)
+          || until < 0 || until > tick + 1440)) {
+        throw new Error('Invalid snapshot behavior cooldowns');
+      }
+    }
+  }
+}
+
+function assertAgentTemplateState(state, template) {
+  for (const agent of state.agents) {
+    if (agent.templateId !== template.id || !Number.isSafeInteger(agent.birthTick)
+      || agent.birthTick < 0 || agent.birthTick > state.simulation.tickCount
+      || !Number.isSafeInteger(agent.lifespanDays)
+      || agent.lifespanDays < template.lifespanDays.min
+      || agent.lifespanDays > template.lifespanDays.max
+      || Object.entries(template.inheritedTraits).some(([key, bounds]) =>
+        !Number.isFinite(agent.traits[key]) || agent.traits[key] < bounds.min
+        || agent.traits[key] > bounds.max)) {
+      throw new Error(`Invalid snapshot agent template state: ${agent.id}`);
+    }
+  }
+}
+
+function assertReproductionState(state, config) {
+  const integer = n => Number.isSafeInteger(n) && n >= 0;
+  const simulation = state.simulation;
+  if (!integer(simulation.birthCount) || !integer(simulation.nextBirthId)
+    || simulation.nextBirthId <= config.agents.count
+    || !integer(simulation.birthRngState) || simulation.birthRngState > 0xffffffff) {
+    throw new Error('Invalid snapshot reproduction counters');
+  }
+  for (const agent of state.agents) {
+    if (!Array.isArray(agent.parentIds) || ![0, 2].includes(agent.parentIds.length)
+      || agent.parentIds.some(id => typeof id !== 'string' || !/^a-\d+$/.test(id) || id === agent.id)
+      || (agent.parentIds.length === 2 && agent.parentIds[0] === agent.parentIds[1])
+      || (agent.birthTick > 0 && agent.parentIds.length !== 2)
+      || (agent.lastBirthTick !== null && (!integer(agent.lastBirthTick)
+        || agent.lastBirthTick < agent.birthTick || agent.lastBirthTick > simulation.tickCount))) {
+      throw new Error(`Invalid snapshot reproduction state: ${agent.id}`);
+    }
+    const match = /^a-(\d+)$/.exec(agent.id);
+    if (match && Number(match[1]) >= simulation.nextBirthId) {
+      throw new Error('Invalid snapshot birth ID counter');
+    }
+  }
+}
+
+function createSnapshotStore(directory, config, objectCatalog, {
+  legacyConfig = null, previousTickMs = null, behaviorCatalog = loadBehaviorCatalog(),
+  agentTemplate = loadAgentTemplate(), reproductionPolicy = loadReproductionPolicy(),
+} = {}) {
   fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
   const primary = path.join(directory, FILE);
   const backup = `${primary}.bak`;
@@ -87,9 +183,41 @@ function createSnapshotStore(directory, config, objectCatalog, { legacyConfig = 
     if (document.catalogHash === undefined && !objectCatalog.legacyCompatible) {
       throw new Error('Snapshot object catalogue mismatch: legacy snapshot requires the built-in catalogue');
     }
+    if (document.behaviorHash !== undefined && document.behaviorHash !== behaviorCatalog.hash) {
+      throw new Error('Snapshot behavior catalogue mismatch; restore the pinned catalogue or start a new world');
+    }
+    if (document.behaviorHash === undefined && behaviorCatalog.hash !== LEGACY_COMPATIBLE_BEHAVIOR_HASH) {
+      throw new Error('Snapshot behavior catalogue mismatch: legacy snapshot requires the built-in catalogue');
+    }
+    if (document.agentTemplateHash !== undefined && document.agentTemplateHash !== agentTemplate.hash) {
+      throw new Error('Snapshot agent template mismatch; restore the pinned template or start a new world');
+    }
+    if (document.agentTemplateHash === undefined && agentTemplate.hash !== LEGACY_COMPATIBLE_AGENT_HASH) {
+      throw new Error('Snapshot agent template mismatch: legacy snapshot requires the built-in template');
+    }
+    // The built-in milestone 10 policy only widens partner discovery. It
+    // changes no saved counters or agent fields, so the exact milestone 9
+    // built-in hash can continue under the new policy without a reset.
+    const m9PolicyUpgrade = reproductionPolicy.hash === M10_REPRODUCTION_HASH
+      && document.reproductionHash === LEGACY_COMPATIBLE_REPRODUCTION_HASH;
+    if (document.reproductionHash !== undefined && document.reproductionHash !== reproductionPolicy.hash
+      && !m9PolicyUpgrade) {
+      throw new Error('Snapshot reproduction policy mismatch; restore the pinned policy or start a new world');
+    }
+    if (document.reproductionHash === undefined
+      && reproductionPolicy.hash !== LEGACY_COMPATIBLE_REPRODUCTION_HASH
+      && reproductionPolicy.hash !== M10_REPRODUCTION_HASH) {
+      throw new Error('Snapshot reproduction policy mismatch: legacy snapshot requires the built-in policy');
+    }
+    if (document.climateModelVersion !== undefined && document.climateModelVersion !== CLIMATE_MODEL_VERSION) {
+      throw new Error(`Snapshot climate model version ${document.climateModelVersion} is incompatible with ${CLIMATE_MODEL_VERSION}`);
+    }
     const bytes = JSON.stringify(document.state);
     if (crypto.createHash('sha256').update(bytes).digest('hex') !== document.checksum) throw new Error('Snapshot checksum mismatch');
     assertState(document.state);
+    assertBehaviorStates(document.state, behaviorCatalog);
+    if (document.agentTemplateHash !== undefined) assertAgentTemplateState(document.state, agentTemplate);
+    if (document.reproductionHash !== undefined) assertReproductionState(document.state, config);
     return document.state;
   }
 
@@ -143,9 +271,15 @@ function createSnapshotStore(directory, config, objectCatalog, { legacyConfig = 
 
   function encode(state) {
     assertState(state);
+    assertBehaviorStates(state, behaviorCatalog);
+    assertAgentTemplateState(state, agentTemplate);
+    assertReproductionState(state, config);
     const checksum = crypto.createHash('sha256').update(JSON.stringify(state)).digest('hex');
     return JSON.stringify({ version: VERSION, configHashVersion: 2, configHash,
-      catalogHash: objectCatalog.hash, checksum, state });
+      catalogHash: objectCatalog.hash, behaviorHash: behaviorCatalog.hash,
+      agentTemplateHash: agentTemplate.hash,
+      reproductionHash: reproductionPolicy.hash,
+      climateModelVersion: CLIMATE_MODEL_VERSION, checksum, state });
   }
 
   function save(state) {

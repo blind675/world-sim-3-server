@@ -6,9 +6,13 @@ const { updateAgentMemory } = require('./memory');
 const { splitmix32 } = require('../utils/prng');
 const { wrappedDistance } = require('../utils/wrap');
 const { clockAt } = require('./clock');
+const { lightAt } = require('./rhythm');
+const { temperatureAt, weatherAt } = require('./climate');
 const { canDrinkAt, createWaterGuide } = require('./water');
 const { isCellPathable } = require('./agents');
 const { wrap } = require('../utils/wrap');
+const { createBehaviorScheduler } = require('./behaviorScheduler');
+const { createReproduction } = require('./reproduction');
 const {
   decayNeeds,
   tickAction,
@@ -25,6 +29,8 @@ function createSimulation(world, onTick = () => {}) {
   const { simulation: simConfig } = config;
   const tickMs = simConfig.tickMs || 200;
   const rng = splitmix32(config.seed ^ 0x6d2b79f5);
+  const behaviors = createBehaviorScheduler(world.behaviorCatalog, rng);
+  const reproduction = createReproduction(world);
   const waterGuide = createWaterGuide(world.terrain, config);
 
   let tickCount = 0;
@@ -80,20 +86,28 @@ function createSimulation(world, onTick = () => {}) {
     // iteration. Dead agents are removed at the end of their update.
     const allAgents = agents.listAll();
     const toRemove = [];
+    const ticksPerDay = simConfig.ticksPerDay || 360;
 
     for (const agent of allAgents) {
+      // A lifespan is fixed at birth and saved with the agent. Check before
+      // needs decay so the boundary tick always has one unambiguous cause.
+      if (tickCount - agent.birthTick >= agent.lifespanDays * ticksPerDay) {
+        agent.dead = true;
+        toRemove.push({ id: agent.id, cause: 'old_age' });
+        continue;
+      }
       updateAgent(agent, world, tickCount);
-      if (agent.dead) toRemove.push(agent.id);
+      if (agent.dead) toRemove.push({ id: agent.id });
     }
 
-    for (const id of toRemove) {
+    for (const { id, cause: ageCause } of toRemove) {
       const agent = agents.getById(id);
       if (agent) {
         // Determine cause of death
-        let cause = 'unknown';
-        if (agent.hunger >= 1) cause = 'hunger';
-        else if (agent.thirst >= 1) cause = 'thirst';
-        else if (agent.tiredness >= 1) cause = 'tiredness';
+        let cause = ageCause || 'unknown';
+        if (!ageCause && agent.hunger >= 1) cause = 'hunger';
+        else if (!ageCause && agent.thirst >= 1) cause = 'thirst';
+        else if (!ageCause && agent.tiredness >= 1) cause = 'tiredness';
 
         // Record death
         deaths.addDeath(id, tickCount, cause);
@@ -102,6 +116,10 @@ function createSimulation(world, onTick = () => {}) {
       agents.removeById(id);
       deathCount++;
     }
+
+    // Newborns join after the adult update loop, so their first needs and
+    // perception update happens on the next authoritative tick.
+    reproduction.tick(tickCount);
 
     if (tickCount % 100 === 0) {
       const alive = agents.listAll().length;
@@ -112,70 +130,55 @@ function createSimulation(world, onTick = () => {}) {
     onTick(tickCount);
   }
 
-  // Probability of picking a new wander goal on any given idle tick when
-  // no need is urgent. Kept at 30% to match pre-M5 behavior.
-  const WANDER_GOAL_PROB = 0.3;
-  // When an urgent need exists, always attempt to act on it (no RNG gate).
+  // The named survival algorithms reuse established memory, water-guide and
+  // pathfinding rules. Leisure choice is handled by the bounded scheduler.
+  function pickSurvivalGoal(agent, urgent) {
+    if (urgent.need === 'tiredness') {
+      return { type: 'seek_rest', targetX: agent.x, targetY: agent.y };
+    }
+    const memType = NEED_TO_MEMORY_TYPE[urgent.need];
+    const mem = pickMemoryTargetForType(agent, memType);
+    if (mem) {
+      // Check agent density around target location
+      const densityRadius = 10; // 10-cell radius for density check
+      const nearbyAgents = calculateAgentDensity(mem.x, mem.y, densityRadius);
 
-  // Pick a goal for an idle agent. Priority order:
-  // 1. Highest-value need above threshold -> seek_food/seek_water/seek_rest
-  // 2. Check if target area is too crowded (> 5 agents in 10-cell radius)
-  // 3. Otherwise, occasional random wander (same as before)
-  function pickGoal(agent) {
-    const urgent = pickUrgentNeed(agent, config);
-    if (urgent) {
-      if (urgent.need === 'tiredness') {
-        return { type: 'seek_rest', targetX: agent.x, targetY: agent.y };
-      }
-      const memType = NEED_TO_MEMORY_TYPE[urgent.need];
-      const mem = pickMemoryTargetForType(agent, memType);
-      if (mem) {
-        // Check agent density around target location
-        const densityRadius = 10; // 10-cell radius for density check
-        const nearbyAgents = calculateAgentDensity(mem.x, mem.y, densityRadius);
-
-        // If area is too crowded (>5 agents), look for alternative or wander
-        if (urgent.need === 'hunger' && nearbyAgents > 5) {
-          // Try to find alternative memory of same type
-          const altMem = pickAlternativeMemoryTarget(agent, memType, mem.id);
-          if (altMem) {
-            return {
-              type: urgent.goal,
-              targetX: altMem.x,
-              targetY: altMem.y,
-              memoryId: altMem.id,
-              memoryConfidence: altMem.confidence,
-              guided: wrappedDistance(agent.x, agent.y, altMem.x, altMem.y,
-                config.width, config.height) > 40,
-            };
-          }
-          // No alternative found - wander away from crowded area
-          return { type: urgent.goal, explore: true };
+      // If area is too crowded (>5 agents), look for alternative or wander
+      if (urgent.need === 'hunger' && nearbyAgents > 5) {
+        // Try to find alternative memory of same type
+        const altMem = pickAlternativeMemoryTarget(agent, memType, mem.id);
+        if (altMem) {
+          return {
+            type: urgent.goal,
+            targetX: altMem.x,
+            targetY: altMem.y,
+            memoryId: altMem.id,
+            memoryConfidence: altMem.confidence,
+            guided: wrappedDistance(agent.x, agent.y, altMem.x, altMem.y,
+              config.width, config.height) > 40,
+          };
         }
-
-        return {
-          type: urgent.goal,
-          targetX: mem.x,
-          targetY: mem.y,
-          memoryId: mem.id,
-          memoryConfidence: mem.confidence,
-          guided: wrappedDistance(agent.x, agent.y, mem.x, mem.y,
-            config.width, config.height) > 40,
-        };
+        // No alternative found - wander away from crowded area
+        return { type: urgent.goal, explore: true };
       }
-      if (urgent.need === 'thirst') {
-        const hint = waterGuide.hintAt(agent.x, agent.y);
-        if (hint) return { type: urgent.goal, targetX: hint.x, targetY: hint.y, guided: true };
-      }
-      // No memory of a suitable resource — wander far to explore and
-      // hopefully stumble into one. Pick a wider random hop.
-      return { type: urgent.goal, explore: true };
-    }
 
-    if (rng() < WANDER_GOAL_PROB) {
-      return { type: 'wander', explore: true };
+      return {
+        type: urgent.goal,
+        targetX: mem.x,
+        targetY: mem.y,
+        memoryId: mem.id,
+        memoryConfidence: mem.confidence,
+        guided: wrappedDistance(agent.x, agent.y, mem.x, mem.y,
+          config.width, config.height) > 40,
+      };
     }
-    return null;
+    if (urgent.need === 'thirst') {
+      const hint = waterGuide.hintAt(agent.x, agent.y);
+      if (hint) return { type: urgent.goal, targetX: hint.x, targetY: hint.y, guided: true };
+    }
+    // No memory of a suitable resource — wander far to explore and
+    // hopefully stumble into one. Pick a wider random hop.
+    return { type: urgent.goal, explore: true };
   }
 
   function planExplorePath(agent, seekingWater, target = null) {
@@ -218,18 +221,45 @@ function createSimulation(world, onTick = () => {}) {
 
   function updateAgent(agent, world, currentTick) {
     // 1. Perception + memory always run first so behaviour uses fresh info.
-    const visible = perception.perceiveAgent(agent);
-    updateAgentMemory(agent, visible, currentTick, world.config);
+    if (agent.state !== 'resting') {
+      const visible = perception.perceiveAgent(agent, currentTick);
+      updateAgentMemory(agent, visible, currentTick, world.config);
+    }
 
     // 2. Needs decay. This may flip agent.dead = true; caller removes it
     //    from the store after this function returns.
-    decayNeeds(agent, config);
+    const temperatureC = temperatureAt(config, world.terrain.cellAt(agent.x, agent.y).height, currentTick);
+    decayNeeds(agent, config, temperatureC);
     if (agent.dead) return;
+
+    const urgent = pickUrgentNeed(agent, config, currentTick, temperatureC);
+    const active = agent.behaviorState && world.behaviorCatalog.get(agent.behaviorState.id);
+    // Once a carried meal starts, finish its short action so a partial meal
+    // cannot restore hunger while leaving the same fruit available to eat again.
+    const preempt = agent.state !== 'eating_carried' && active && ((active.kind === 'leisure' && urgent)
+      || (active.kind === 'survival' && urgent && urgent.goal !== active.id
+        && (active.interrupt === 'more_urgent'
+          || (active.interrupt === 'fatal_need' && urgent.need !== 'tiredness')))
+      || behaviors.timedOut(agent, currentTick));
+    if (preempt || (!active && urgent && agent.currentGoal?.type === 'wander')) {
+      behaviors.finish(agent, currentTick);
+      objects.removeAgentFromResources(agent.id);
+      agent.actionTargetId = null;
+      agent.actionTicksRemaining = 0;
+      agent.currentGoal = null;
+      agents.setPath(agent, []);
+    }
+    if (agent.behaviorState && world.behaviorCatalog.get(agent.behaviorState.id).algorithm === 'sequence') {
+      behaviors.tickSequence(agent, currentTick);
+      return;
+    }
 
     // 3. If the agent is mid-action (eat/drink/rest), tick it. Skip goal
     //    selection entirely this tick regardless of completion.
     if (
       agent.state === 'eating'
+      || agent.state === 'eating_carried'
+      || agent.state === 'collecting_food'
       || agent.state === 'drinking'
       || agent.state === 'resting'
     ) {
@@ -267,9 +297,11 @@ function createSimulation(world, onTick = () => {}) {
         agent.currentGoal = null;
         agent.actionTargetId = null;
       } else if (objects.tryAcquireResource(agent.id, target.id)) {
-        agent.state = actionState;
-        agent.currentAction = actionState;
-        agent.actionTicksRemaining = config.survival.actionTicks;
+        const actualAction = actionState === 'collecting_food' && !objects.isFruitSource(target.id)
+          ? 'eating' : actionState;
+        agent.state = actualAction;
+        agent.currentAction = actualAction;
+        agent.actionTicksRemaining = actualAction === 'collecting_food' ? 1 : config.survival.actionTicks;
       }
       return;
     }
@@ -290,13 +322,36 @@ function createSimulation(world, onTick = () => {}) {
           agent.memory = agent.memory.filter(m => m.id !== agent.currentGoal.memoryId);
         }
         agent.currentGoal = null;
+        behaviors.finish(agent, currentTick);
       }
       return;
     }
 
-    // 5. Idle: pick a goal (needs-driven or wander).
-    const goal = pickGoal(agent);
-    if (!goal) return;
+    // 5. Select a survival policy or a weighted leisure behavior. Every
+    // sequence step consumes this tick; path planning is a bounded operation
+    // and movement begins on a later tick.
+    if (agent.behaviorState) behaviors.finish(agent, currentTick);
+    let goal;
+    if (urgent) {
+      behaviors.start(agent, urgent.goal, currentTick);
+      if (urgent.need === 'hunger' && agent.inventory?.length) {
+        agent.currentGoal = null;
+        agent.state = 'eating_carried';
+        agent.currentAction = 'eating_carried';
+        agent.actionTargetId = null;
+        agent.actionTicksRemaining = config.survival.actionTicks;
+        return;
+      }
+      goal = pickSurvivalGoal(agent, urgent);
+    } else {
+      const def = behaviors.selectLeisure(agent, currentTick);
+      behaviors.start(agent, def.id, currentTick);
+      if (def.algorithm === 'sequence') {
+        behaviors.tickSequence(agent, currentTick);
+        return;
+      }
+      goal = { type: 'wander', explore: true };
+    }
 
     if (goal.type === 'seek_rest' || goal.type === 'seek_food'
       || (goal.type === 'seek_water'
@@ -325,6 +380,9 @@ function createSimulation(world, onTick = () => {}) {
       if (goal.memoryId) agent.memory = agent.memory.filter(m => m.id !== goal.memoryId);
       agent.currentGoal = null;
       agent.currentAction = null;
+      behaviors.finish(agent, currentTick);
+      behaviors.start(agent, 'idle', currentTick);
+      behaviors.tickSequence(agent, currentTick);
     }
   }
 
@@ -338,12 +396,14 @@ function createSimulation(world, onTick = () => {}) {
     if (intervalId) clearInterval(intervalId);
     intervalId = null;
   }
-  function snapshot() { return { tickCount, deathCount, rngState: rng.getState(), worldId }; }
+  function snapshot() { return { tickCount, deathCount, rngState: rng.getState(), worldId,
+    ...reproduction.snapshot() }; }
   function restore(state) {
     tickCount = state.tickCount;
     deathCount = state.deathCount;
     rng.setState(state.rngState);
     worldId = state.worldId || randomUUID();
+    reproduction.restore(state);
   }
 
   function getStatus() {
@@ -351,9 +411,14 @@ function createSimulation(world, onTick = () => {}) {
       tickCount,
       tickMs,
       clock: clockAt(tickCount, simConfig.ticksPerDay || 360),
+      light: lightAt(tickCount, simConfig.ticksPerDay || 360),
+      temperatureC: Math.round(temperatureAt(config, config.terrain.seaLevel, tickCount) * 10) / 10,
+      weather: weatherAt(config, tickCount).type,
       lastTickAt,
       agentCount: agents.listAll().length,
       deathCount,
+      birthCount: reproduction.getBirthCount(),
+      populationCap: reproduction.getPopulationCap(),
       worldId,
     };
   }

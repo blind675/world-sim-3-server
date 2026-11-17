@@ -1,0 +1,1706 @@
+{
+  "reportVersion": 1,
+  "mode": "natural",
+  "method": "ordinary ticks from birth",
+  "limits": "Offline reduced world/agent settings are not production 5120-cell survival evidence. The elder cohort skips 499 days; timing and RSS are host dependent. Death records retain 1000 entries.",
+  "settings": {
+    "mode": "natural",
+    "seeds": [
+      20260420,
+      20260421,
+      20260422
+    ],
+    "ticks": 21960,
+    "agents": 12,
+    "width": 512,
+    "height": 512,
+    "output": "docs/baselines/population-m10-natural.json",
+    "policyPath": null
+  },
+  "seeds": [
+    {
+      "seed": 20260420,
+      "ticksRun": 21960,
+      "elapsedDays": 61,
+      "births": 9,
+      "deaths": 12,
+      "deathsByCause": {
+        "hunger": 12
+      },
+      "alive": 9,
+      "maxLiving": 12,
+      "populationCap": 60,
+      "firstExtinctionTick": null,
+      "ageDays": {
+        "min": 1.6666666666666667,
+        "median": 61,
+        "max": 61
+      },
+      "traits": {
+        "visionRange": {
+          "min": 19,
+          "median": 20,
+          "max": 21
+        },
+        "memoryCapacity": {
+          "min": 47,
+          "median": 50,
+          "max": 51
+        },
+        "memoryDecayRate": {
+          "min": 0.00934,
+          "median": 0.01,
+          "max": 0.01069
+        },
+        "moveSpeed": {
+          "min": 0.97456,
+          "median": 1,
+          "max": 1.04997
+        }
+      },
+      "travelCells": 1008299,
+      "totalMemoryEntries": 441,
+      "tickP50Ms": 2.42,
+      "tickP95Ms": 21.87,
+      "peakSampledRssBytes": 232026112,
+      "initialSnapshotBytes": 8892,
+      "finalSnapshotBytes": 90181,
+      "finalBackupBytes": 84024,
+      "maxSnapshotBytes": 126254,
+      "daily": [
+        {
+          "elapsedDays": 1,
+          "alive": 12,
+          "births": 0,
+          "deaths": 0,
+          "primaryBytes": 45179,
+          "backupBytes": 8892
+        },
+        {
+          "elapsedDays": 2,
+          "alive": 12,
+          "births": 0,
+          "deaths": 0,
+          "primaryBytes": 102328,
+          "backupBytes": 45179
+        },
+        {
+          "elapsedDays": 3,
+          "alive": 12,
+          "births": 0,
+          "deaths": 0,
+          "primaryBytes": 115805,
+          "backupBytes": 102328
+        },
+        {
+          "elapsedDays": 4,
+          "alive": 12,
+          "births": 0,
+          "deaths": 0,
+          "primaryBytes": 126254,
+          "backupBytes": 115805
+        },
+        {
+          "elapsedDays": 5,
+          "alive": 12,
+          "births": 0,
+          "deaths": 0,
+          "primaryBytes": 124204,
+          "backupBytes": 126254
+        },
+        {
+          "elapsedDays": 6,
+          "alive": 12,
+          "births": 0,
+          "deaths": 0,
+          "primaryBytes": 123242,
+          "backupBytes": 124204
+        },
+        {
+          "elapsedDays": 7,
+          "alive": 6,
+          "births": 0,
+          "deaths": 6,
+          "primaryBytes": 56655,
+          "backupBytes": 123242
+        },
+        {
+          "elapsedDays": 8,
+          "alive": 6,
+          "births": 0,
+          "deaths": 6,
+          "primaryBytes": 56907,
+          "backupBytes": 56655
+        },
+        {
+          "elapsedDays": 9,
+          "alive": 6,
+          "births": 0,
+          "deaths": 6,
+          "primaryBytes": 53814,
+          "backupBytes": 56907
+        },
+        {
+          "elapsedDays": 10,
+          "alive": 6,
+          "births": 0,
+          "deaths": 6,
+          "primaryBytes": 53821,
+          "backupBytes": 53814
+        },
+        {
+          "elapsedDays": 11,
+          "alive": 6,
+          "births": 0,
+          "deaths": 6,
+          "primaryBytes": 56009,
+          "backupBytes": 53821
+        },
+        {
+          "elapsedDays": 12,
+          "alive": 6,
+          "births": 0,
+          "deaths": 6,
+          "primaryBytes": 57842,
+          "backupBytes": 56009
+        },
+        {
+          "elapsedDays": 13,
+          "alive": 6,
+          "births": 0,
+          "deaths": 6,
+          "primaryBytes": 57391,
+          "backupBytes": 57842
+        },
+        {
+          "elapsedDays": 14,
+          "alive": 6,
+          "births": 0,
+          "deaths": 6,
+          "primaryBytes": 56305,
+          "backupBytes": 57391
+        },
+        {
+          "elapsedDays": 15,
+          "alive": 6,
+          "births": 0,
+          "deaths": 6,
+          "primaryBytes": 54209,
+          "backupBytes": 56305
+        },
+        {
+          "elapsedDays": 16,
+          "alive": 6,
+          "births": 0,
+          "deaths": 6,
+          "primaryBytes": 54965,
+          "backupBytes": 54209
+        },
+        {
+          "elapsedDays": 17,
+          "alive": 6,
+          "births": 0,
+          "deaths": 6,
+          "primaryBytes": 59247,
+          "backupBytes": 54965
+        },
+        {
+          "elapsedDays": 18,
+          "alive": 6,
+          "births": 0,
+          "deaths": 6,
+          "primaryBytes": 59811,
+          "backupBytes": 59247
+        },
+        {
+          "elapsedDays": 19,
+          "alive": 6,
+          "births": 0,
+          "deaths": 6,
+          "primaryBytes": 59547,
+          "backupBytes": 59811
+        },
+        {
+          "elapsedDays": 20,
+          "alive": 6,
+          "births": 0,
+          "deaths": 6,
+          "primaryBytes": 54306,
+          "backupBytes": 59547
+        },
+        {
+          "elapsedDays": 21,
+          "alive": 6,
+          "births": 0,
+          "deaths": 6,
+          "primaryBytes": 60160,
+          "backupBytes": 54306
+        },
+        {
+          "elapsedDays": 22,
+          "alive": 6,
+          "births": 0,
+          "deaths": 6,
+          "primaryBytes": 64434,
+          "backupBytes": 60160
+        },
+        {
+          "elapsedDays": 23,
+          "alive": 6,
+          "births": 0,
+          "deaths": 6,
+          "primaryBytes": 57380,
+          "backupBytes": 64434
+        },
+        {
+          "elapsedDays": 24,
+          "alive": 6,
+          "births": 0,
+          "deaths": 6,
+          "primaryBytes": 63524,
+          "backupBytes": 57380
+        },
+        {
+          "elapsedDays": 25,
+          "alive": 6,
+          "births": 0,
+          "deaths": 6,
+          "primaryBytes": 60497,
+          "backupBytes": 63524
+        },
+        {
+          "elapsedDays": 26,
+          "alive": 6,
+          "births": 0,
+          "deaths": 6,
+          "primaryBytes": 65117,
+          "backupBytes": 60497
+        },
+        {
+          "elapsedDays": 27,
+          "alive": 6,
+          "births": 0,
+          "deaths": 6,
+          "primaryBytes": 65539,
+          "backupBytes": 65117
+        },
+        {
+          "elapsedDays": 28,
+          "alive": 5,
+          "births": 0,
+          "deaths": 7,
+          "primaryBytes": 54770,
+          "backupBytes": 65539
+        },
+        {
+          "elapsedDays": 29,
+          "alive": 5,
+          "births": 0,
+          "deaths": 7,
+          "primaryBytes": 54579,
+          "backupBytes": 54770
+        },
+        {
+          "elapsedDays": 30,
+          "alive": 6,
+          "births": 1,
+          "deaths": 7,
+          "primaryBytes": 56581,
+          "backupBytes": 54579
+        },
+        {
+          "elapsedDays": 31,
+          "alive": 7,
+          "births": 2,
+          "deaths": 7,
+          "primaryBytes": 62505,
+          "backupBytes": 56581
+        },
+        {
+          "elapsedDays": 32,
+          "alive": 7,
+          "births": 2,
+          "deaths": 7,
+          "primaryBytes": 62940,
+          "backupBytes": 62505
+        },
+        {
+          "elapsedDays": 33,
+          "alive": 7,
+          "births": 2,
+          "deaths": 7,
+          "primaryBytes": 71388,
+          "backupBytes": 62940
+        },
+        {
+          "elapsedDays": 34,
+          "alive": 7,
+          "births": 2,
+          "deaths": 7,
+          "primaryBytes": 72055,
+          "backupBytes": 71388
+        },
+        {
+          "elapsedDays": 35,
+          "alive": 7,
+          "births": 2,
+          "deaths": 7,
+          "primaryBytes": 71803,
+          "backupBytes": 72055
+        },
+        {
+          "elapsedDays": 36,
+          "alive": 7,
+          "births": 2,
+          "deaths": 7,
+          "primaryBytes": 70212,
+          "backupBytes": 71803
+        },
+        {
+          "elapsedDays": 37,
+          "alive": 6,
+          "births": 2,
+          "deaths": 8,
+          "primaryBytes": 65286,
+          "backupBytes": 70212
+        },
+        {
+          "elapsedDays": 38,
+          "alive": 6,
+          "births": 3,
+          "deaths": 9,
+          "primaryBytes": 53252,
+          "backupBytes": 65286
+        },
+        {
+          "elapsedDays": 39,
+          "alive": 6,
+          "births": 3,
+          "deaths": 9,
+          "primaryBytes": 66426,
+          "backupBytes": 53252
+        },
+        {
+          "elapsedDays": 40,
+          "alive": 7,
+          "births": 4,
+          "deaths": 9,
+          "primaryBytes": 68115,
+          "backupBytes": 66426
+        },
+        {
+          "elapsedDays": 41,
+          "alive": 7,
+          "births": 4,
+          "deaths": 9,
+          "primaryBytes": 72235,
+          "backupBytes": 68115
+        },
+        {
+          "elapsedDays": 42,
+          "alive": 7,
+          "births": 4,
+          "deaths": 9,
+          "primaryBytes": 71666,
+          "backupBytes": 72235
+        },
+        {
+          "elapsedDays": 43,
+          "alive": 7,
+          "births": 4,
+          "deaths": 9,
+          "primaryBytes": 70811,
+          "backupBytes": 71666
+        },
+        {
+          "elapsedDays": 44,
+          "alive": 7,
+          "births": 4,
+          "deaths": 9,
+          "primaryBytes": 73788,
+          "backupBytes": 70811
+        },
+        {
+          "elapsedDays": 45,
+          "alive": 8,
+          "births": 5,
+          "deaths": 9,
+          "primaryBytes": 76281,
+          "backupBytes": 73788
+        },
+        {
+          "elapsedDays": 46,
+          "alive": 8,
+          "births": 5,
+          "deaths": 9,
+          "primaryBytes": 78570,
+          "backupBytes": 76281
+        },
+        {
+          "elapsedDays": 47,
+          "alive": 8,
+          "births": 6,
+          "deaths": 10,
+          "primaryBytes": 77494,
+          "backupBytes": 78570
+        },
+        {
+          "elapsedDays": 48,
+          "alive": 8,
+          "births": 6,
+          "deaths": 10,
+          "primaryBytes": 79523,
+          "backupBytes": 77494
+        },
+        {
+          "elapsedDays": 49,
+          "alive": 8,
+          "births": 6,
+          "deaths": 10,
+          "primaryBytes": 81684,
+          "backupBytes": 79523
+        },
+        {
+          "elapsedDays": 50,
+          "alive": 8,
+          "births": 6,
+          "deaths": 10,
+          "primaryBytes": 81305,
+          "backupBytes": 81684
+        },
+        {
+          "elapsedDays": 51,
+          "alive": 8,
+          "births": 6,
+          "deaths": 10,
+          "primaryBytes": 77029,
+          "backupBytes": 81305
+        },
+        {
+          "elapsedDays": 52,
+          "alive": 9,
+          "births": 7,
+          "deaths": 10,
+          "primaryBytes": 87454,
+          "backupBytes": 77029
+        },
+        {
+          "elapsedDays": 53,
+          "alive": 9,
+          "births": 7,
+          "deaths": 10,
+          "primaryBytes": 88372,
+          "backupBytes": 87454
+        },
+        {
+          "elapsedDays": 54,
+          "alive": 8,
+          "births": 7,
+          "deaths": 11,
+          "primaryBytes": 80084,
+          "backupBytes": 88372
+        },
+        {
+          "elapsedDays": 55,
+          "alive": 9,
+          "births": 8,
+          "deaths": 11,
+          "primaryBytes": 85129,
+          "backupBytes": 80084
+        },
+        {
+          "elapsedDays": 56,
+          "alive": 9,
+          "births": 8,
+          "deaths": 11,
+          "primaryBytes": 88069,
+          "backupBytes": 85129
+        },
+        {
+          "elapsedDays": 57,
+          "alive": 9,
+          "births": 8,
+          "deaths": 11,
+          "primaryBytes": 97156,
+          "backupBytes": 88069
+        },
+        {
+          "elapsedDays": 58,
+          "alive": 9,
+          "births": 8,
+          "deaths": 11,
+          "primaryBytes": 95059,
+          "backupBytes": 97156
+        },
+        {
+          "elapsedDays": 59,
+          "alive": 8,
+          "births": 8,
+          "deaths": 12,
+          "primaryBytes": 83030,
+          "backupBytes": 95059
+        },
+        {
+          "elapsedDays": 60,
+          "alive": 9,
+          "births": 9,
+          "deaths": 12,
+          "primaryBytes": 84024,
+          "backupBytes": 83030
+        },
+        {
+          "elapsedDays": 61,
+          "alive": 9,
+          "births": 9,
+          "deaths": 12,
+          "primaryBytes": 90181,
+          "backupBytes": 84024
+        }
+      ]
+    },
+    {
+      "seed": 20260421,
+      "ticksRun": 21960,
+      "elapsedDays": 61,
+      "births": 8,
+      "deaths": 10,
+      "deathsByCause": {
+        "hunger": 10
+      },
+      "alive": 10,
+      "maxLiving": 12,
+      "populationCap": 60,
+      "firstExtinctionTick": null,
+      "ageDays": {
+        "min": 0.16666666666666666,
+        "median": 30.5,
+        "max": 61
+      },
+      "traits": {
+        "visionRange": {
+          "min": 18,
+          "median": 20,
+          "max": 21
+        },
+        "memoryCapacity": {
+          "min": 47,
+          "median": 50,
+          "max": 52
+        },
+        "memoryDecayRate": {
+          "min": 0.00832,
+          "median": 0.01,
+          "max": 0.01173
+        },
+        "moveSpeed": {
+          "min": 0.95278,
+          "median": 0.98,
+          "max": 1.01272
+        }
+      },
+      "travelCells": 1115589,
+      "totalMemoryEntries": 452,
+      "tickP50Ms": 3.65,
+      "tickP95Ms": 25.24,
+      "peakSampledRssBytes": 336482304,
+      "initialSnapshotBytes": 8962,
+      "finalSnapshotBytes": 86801,
+      "finalBackupBytes": 79234,
+      "maxSnapshotBytes": 122940,
+      "daily": [
+        {
+          "elapsedDays": 1,
+          "alive": 12,
+          "births": 0,
+          "deaths": 0,
+          "primaryBytes": 56191,
+          "backupBytes": 8962
+        },
+        {
+          "elapsedDays": 2,
+          "alive": 12,
+          "births": 0,
+          "deaths": 0,
+          "primaryBytes": 99862,
+          "backupBytes": 56191
+        },
+        {
+          "elapsedDays": 3,
+          "alive": 12,
+          "births": 0,
+          "deaths": 0,
+          "primaryBytes": 118863,
+          "backupBytes": 99862
+        },
+        {
+          "elapsedDays": 4,
+          "alive": 12,
+          "births": 0,
+          "deaths": 0,
+          "primaryBytes": 118529,
+          "backupBytes": 118863
+        },
+        {
+          "elapsedDays": 5,
+          "alive": 12,
+          "births": 0,
+          "deaths": 0,
+          "primaryBytes": 122940,
+          "backupBytes": 118529
+        },
+        {
+          "elapsedDays": 6,
+          "alive": 12,
+          "births": 0,
+          "deaths": 0,
+          "primaryBytes": 122613,
+          "backupBytes": 122940
+        },
+        {
+          "elapsedDays": 7,
+          "alive": 8,
+          "births": 0,
+          "deaths": 4,
+          "primaryBytes": 76122,
+          "backupBytes": 122613
+        },
+        {
+          "elapsedDays": 8,
+          "alive": 8,
+          "births": 0,
+          "deaths": 4,
+          "primaryBytes": 78490,
+          "backupBytes": 76122
+        },
+        {
+          "elapsedDays": 9,
+          "alive": 8,
+          "births": 0,
+          "deaths": 4,
+          "primaryBytes": 75046,
+          "backupBytes": 78490
+        },
+        {
+          "elapsedDays": 10,
+          "alive": 8,
+          "births": 0,
+          "deaths": 4,
+          "primaryBytes": 76145,
+          "backupBytes": 75046
+        },
+        {
+          "elapsedDays": 11,
+          "alive": 8,
+          "births": 0,
+          "deaths": 4,
+          "primaryBytes": 75901,
+          "backupBytes": 76145
+        },
+        {
+          "elapsedDays": 12,
+          "alive": 8,
+          "births": 0,
+          "deaths": 4,
+          "primaryBytes": 76220,
+          "backupBytes": 75901
+        },
+        {
+          "elapsedDays": 13,
+          "alive": 8,
+          "births": 0,
+          "deaths": 4,
+          "primaryBytes": 75997,
+          "backupBytes": 76220
+        },
+        {
+          "elapsedDays": 14,
+          "alive": 8,
+          "births": 0,
+          "deaths": 4,
+          "primaryBytes": 79121,
+          "backupBytes": 75997
+        },
+        {
+          "elapsedDays": 15,
+          "alive": 8,
+          "births": 0,
+          "deaths": 4,
+          "primaryBytes": 77940,
+          "backupBytes": 79121
+        },
+        {
+          "elapsedDays": 16,
+          "alive": 8,
+          "births": 0,
+          "deaths": 4,
+          "primaryBytes": 73691,
+          "backupBytes": 77940
+        },
+        {
+          "elapsedDays": 17,
+          "alive": 8,
+          "births": 0,
+          "deaths": 4,
+          "primaryBytes": 84288,
+          "backupBytes": 73691
+        },
+        {
+          "elapsedDays": 18,
+          "alive": 7,
+          "births": 0,
+          "deaths": 5,
+          "primaryBytes": 67758,
+          "backupBytes": 84288
+        },
+        {
+          "elapsedDays": 19,
+          "alive": 7,
+          "births": 0,
+          "deaths": 5,
+          "primaryBytes": 62552,
+          "backupBytes": 67758
+        },
+        {
+          "elapsedDays": 20,
+          "alive": 7,
+          "births": 0,
+          "deaths": 5,
+          "primaryBytes": 70496,
+          "backupBytes": 62552
+        },
+        {
+          "elapsedDays": 21,
+          "alive": 7,
+          "births": 0,
+          "deaths": 5,
+          "primaryBytes": 67985,
+          "backupBytes": 70496
+        },
+        {
+          "elapsedDays": 22,
+          "alive": 6,
+          "births": 0,
+          "deaths": 6,
+          "primaryBytes": 56631,
+          "backupBytes": 67985
+        },
+        {
+          "elapsedDays": 23,
+          "alive": 6,
+          "births": 0,
+          "deaths": 6,
+          "primaryBytes": 53976,
+          "backupBytes": 56631
+        },
+        {
+          "elapsedDays": 24,
+          "alive": 6,
+          "births": 0,
+          "deaths": 6,
+          "primaryBytes": 56622,
+          "backupBytes": 53976
+        },
+        {
+          "elapsedDays": 25,
+          "alive": 6,
+          "births": 0,
+          "deaths": 6,
+          "primaryBytes": 63512,
+          "backupBytes": 56622
+        },
+        {
+          "elapsedDays": 26,
+          "alive": 6,
+          "births": 0,
+          "deaths": 6,
+          "primaryBytes": 56649,
+          "backupBytes": 63512
+        },
+        {
+          "elapsedDays": 27,
+          "alive": 6,
+          "births": 0,
+          "deaths": 6,
+          "primaryBytes": 62624,
+          "backupBytes": 56649
+        },
+        {
+          "elapsedDays": 28,
+          "alive": 6,
+          "births": 0,
+          "deaths": 6,
+          "primaryBytes": 62269,
+          "backupBytes": 62624
+        },
+        {
+          "elapsedDays": 29,
+          "alive": 6,
+          "births": 0,
+          "deaths": 6,
+          "primaryBytes": 60374,
+          "backupBytes": 62269
+        },
+        {
+          "elapsedDays": 30,
+          "alive": 7,
+          "births": 1,
+          "deaths": 6,
+          "primaryBytes": 63317,
+          "backupBytes": 60374
+        },
+        {
+          "elapsedDays": 31,
+          "alive": 8,
+          "births": 2,
+          "deaths": 6,
+          "primaryBytes": 61486,
+          "backupBytes": 63317
+        },
+        {
+          "elapsedDays": 32,
+          "alive": 8,
+          "births": 2,
+          "deaths": 6,
+          "primaryBytes": 67698,
+          "backupBytes": 61486
+        },
+        {
+          "elapsedDays": 33,
+          "alive": 8,
+          "births": 2,
+          "deaths": 6,
+          "primaryBytes": 69001,
+          "backupBytes": 67698
+        },
+        {
+          "elapsedDays": 34,
+          "alive": 8,
+          "births": 2,
+          "deaths": 6,
+          "primaryBytes": 68186,
+          "backupBytes": 69001
+        },
+        {
+          "elapsedDays": 35,
+          "alive": 8,
+          "births": 2,
+          "deaths": 6,
+          "primaryBytes": 71360,
+          "backupBytes": 68186
+        },
+        {
+          "elapsedDays": 36,
+          "alive": 8,
+          "births": 2,
+          "deaths": 6,
+          "primaryBytes": 78695,
+          "backupBytes": 71360
+        },
+        {
+          "elapsedDays": 37,
+          "alive": 8,
+          "births": 2,
+          "deaths": 6,
+          "primaryBytes": 76543,
+          "backupBytes": 78695
+        },
+        {
+          "elapsedDays": 38,
+          "alive": 9,
+          "births": 3,
+          "deaths": 6,
+          "primaryBytes": 80910,
+          "backupBytes": 76543
+        },
+        {
+          "elapsedDays": 39,
+          "alive": 10,
+          "births": 4,
+          "deaths": 6,
+          "primaryBytes": 78540,
+          "backupBytes": 80910
+        },
+        {
+          "elapsedDays": 40,
+          "alive": 10,
+          "births": 4,
+          "deaths": 6,
+          "primaryBytes": 92433,
+          "backupBytes": 78540
+        },
+        {
+          "elapsedDays": 41,
+          "alive": 10,
+          "births": 4,
+          "deaths": 6,
+          "primaryBytes": 96786,
+          "backupBytes": 92433
+        },
+        {
+          "elapsedDays": 42,
+          "alive": 10,
+          "births": 4,
+          "deaths": 6,
+          "primaryBytes": 99137,
+          "backupBytes": 96786
+        },
+        {
+          "elapsedDays": 43,
+          "alive": 10,
+          "births": 4,
+          "deaths": 6,
+          "primaryBytes": 100442,
+          "backupBytes": 99137
+        },
+        {
+          "elapsedDays": 44,
+          "alive": 10,
+          "births": 4,
+          "deaths": 6,
+          "primaryBytes": 94508,
+          "backupBytes": 100442
+        },
+        {
+          "elapsedDays": 45,
+          "alive": 9,
+          "births": 4,
+          "deaths": 7,
+          "primaryBytes": 84946,
+          "backupBytes": 94508
+        },
+        {
+          "elapsedDays": 46,
+          "alive": 10,
+          "births": 6,
+          "deaths": 8,
+          "primaryBytes": 83429,
+          "backupBytes": 84946
+        },
+        {
+          "elapsedDays": 47,
+          "alive": 10,
+          "births": 6,
+          "deaths": 8,
+          "primaryBytes": 82541,
+          "backupBytes": 83429
+        },
+        {
+          "elapsedDays": 48,
+          "alive": 10,
+          "births": 6,
+          "deaths": 8,
+          "primaryBytes": 94117,
+          "backupBytes": 82541
+        },
+        {
+          "elapsedDays": 49,
+          "alive": 10,
+          "births": 6,
+          "deaths": 8,
+          "primaryBytes": 100633,
+          "backupBytes": 94117
+        },
+        {
+          "elapsedDays": 50,
+          "alive": 10,
+          "births": 6,
+          "deaths": 8,
+          "primaryBytes": 96538,
+          "backupBytes": 100633
+        },
+        {
+          "elapsedDays": 51,
+          "alive": 10,
+          "births": 6,
+          "deaths": 8,
+          "primaryBytes": 97581,
+          "backupBytes": 96538
+        },
+        {
+          "elapsedDays": 52,
+          "alive": 10,
+          "births": 6,
+          "deaths": 8,
+          "primaryBytes": 96261,
+          "backupBytes": 97581
+        },
+        {
+          "elapsedDays": 53,
+          "alive": 10,
+          "births": 7,
+          "deaths": 9,
+          "primaryBytes": 91741,
+          "backupBytes": 96261
+        },
+        {
+          "elapsedDays": 54,
+          "alive": 10,
+          "births": 7,
+          "deaths": 9,
+          "primaryBytes": 97212,
+          "backupBytes": 91741
+        },
+        {
+          "elapsedDays": 55,
+          "alive": 10,
+          "births": 7,
+          "deaths": 9,
+          "primaryBytes": 94249,
+          "backupBytes": 97212
+        },
+        {
+          "elapsedDays": 56,
+          "alive": 9,
+          "births": 7,
+          "deaths": 10,
+          "primaryBytes": 82276,
+          "backupBytes": 94249
+        },
+        {
+          "elapsedDays": 57,
+          "alive": 9,
+          "births": 7,
+          "deaths": 10,
+          "primaryBytes": 90916,
+          "backupBytes": 82276
+        },
+        {
+          "elapsedDays": 58,
+          "alive": 9,
+          "births": 7,
+          "deaths": 10,
+          "primaryBytes": 85423,
+          "backupBytes": 90916
+        },
+        {
+          "elapsedDays": 59,
+          "alive": 9,
+          "births": 7,
+          "deaths": 10,
+          "primaryBytes": 85453,
+          "backupBytes": 85423
+        },
+        {
+          "elapsedDays": 60,
+          "alive": 9,
+          "births": 7,
+          "deaths": 10,
+          "primaryBytes": 79234,
+          "backupBytes": 85453
+        },
+        {
+          "elapsedDays": 61,
+          "alive": 10,
+          "births": 8,
+          "deaths": 10,
+          "primaryBytes": 86801,
+          "backupBytes": 79234
+        }
+      ]
+    },
+    {
+      "seed": 20260422,
+      "ticksRun": 21960,
+      "elapsedDays": 61,
+      "births": 6,
+      "deaths": 12,
+      "deathsByCause": {
+        "hunger": 12
+      },
+      "alive": 6,
+      "maxLiving": 12,
+      "populationCap": 60,
+      "firstExtinctionTick": null,
+      "ageDays": {
+        "min": 6.5,
+        "median": 29.56,
+        "max": 61
+      },
+      "traits": {
+        "visionRange": {
+          "min": 19,
+          "median": 20,
+          "max": 21
+        },
+        "memoryCapacity": {
+          "min": 46,
+          "median": 48,
+          "max": 50
+        },
+        "memoryDecayRate": {
+          "min": 0.01,
+          "median": 0.01,
+          "max": 0.0109
+        },
+        "moveSpeed": {
+          "min": 0.96763,
+          "median": 1,
+          "max": 1.00907
+        }
+      },
+      "travelCells": 895273,
+      "totalMemoryEntries": 289,
+      "tickP50Ms": 2.18,
+      "tickP95Ms": 22.59,
+      "peakSampledRssBytes": 345284608,
+      "initialSnapshotBytes": 8961,
+      "finalSnapshotBytes": 53719,
+      "finalBackupBytes": 56712,
+      "maxSnapshotBytes": 130268,
+      "daily": [
+        {
+          "elapsedDays": 1,
+          "alive": 12,
+          "births": 0,
+          "deaths": 0,
+          "primaryBytes": 48796,
+          "backupBytes": 8961
+        },
+        {
+          "elapsedDays": 2,
+          "alive": 12,
+          "births": 0,
+          "deaths": 0,
+          "primaryBytes": 102026,
+          "backupBytes": 48796
+        },
+        {
+          "elapsedDays": 3,
+          "alive": 12,
+          "births": 0,
+          "deaths": 0,
+          "primaryBytes": 121786,
+          "backupBytes": 102026
+        },
+        {
+          "elapsedDays": 4,
+          "alive": 12,
+          "births": 0,
+          "deaths": 0,
+          "primaryBytes": 130268,
+          "backupBytes": 121786
+        },
+        {
+          "elapsedDays": 5,
+          "alive": 12,
+          "births": 0,
+          "deaths": 0,
+          "primaryBytes": 122383,
+          "backupBytes": 130268
+        },
+        {
+          "elapsedDays": 6,
+          "alive": 12,
+          "births": 0,
+          "deaths": 0,
+          "primaryBytes": 121725,
+          "backupBytes": 122383
+        },
+        {
+          "elapsedDays": 7,
+          "alive": 5,
+          "births": 0,
+          "deaths": 7,
+          "primaryBytes": 48421,
+          "backupBytes": 121725
+        },
+        {
+          "elapsedDays": 8,
+          "alive": 5,
+          "births": 0,
+          "deaths": 7,
+          "primaryBytes": 51467,
+          "backupBytes": 48421
+        },
+        {
+          "elapsedDays": 9,
+          "alive": 5,
+          "births": 0,
+          "deaths": 7,
+          "primaryBytes": 52557,
+          "backupBytes": 51467
+        },
+        {
+          "elapsedDays": 10,
+          "alive": 5,
+          "births": 0,
+          "deaths": 7,
+          "primaryBytes": 51199,
+          "backupBytes": 52557
+        },
+        {
+          "elapsedDays": 11,
+          "alive": 5,
+          "births": 0,
+          "deaths": 7,
+          "primaryBytes": 48507,
+          "backupBytes": 51199
+        },
+        {
+          "elapsedDays": 12,
+          "alive": 5,
+          "births": 0,
+          "deaths": 7,
+          "primaryBytes": 48818,
+          "backupBytes": 48507
+        },
+        {
+          "elapsedDays": 13,
+          "alive": 5,
+          "births": 0,
+          "deaths": 7,
+          "primaryBytes": 45668,
+          "backupBytes": 48818
+        },
+        {
+          "elapsedDays": 14,
+          "alive": 5,
+          "births": 0,
+          "deaths": 7,
+          "primaryBytes": 45865,
+          "backupBytes": 45668
+        },
+        {
+          "elapsedDays": 15,
+          "alive": 5,
+          "births": 0,
+          "deaths": 7,
+          "primaryBytes": 48751,
+          "backupBytes": 45865
+        },
+        {
+          "elapsedDays": 16,
+          "alive": 5,
+          "births": 0,
+          "deaths": 7,
+          "primaryBytes": 51470,
+          "backupBytes": 48751
+        },
+        {
+          "elapsedDays": 17,
+          "alive": 5,
+          "births": 0,
+          "deaths": 7,
+          "primaryBytes": 48817,
+          "backupBytes": 51470
+        },
+        {
+          "elapsedDays": 18,
+          "alive": 5,
+          "births": 0,
+          "deaths": 7,
+          "primaryBytes": 48396,
+          "backupBytes": 48817
+        },
+        {
+          "elapsedDays": 19,
+          "alive": 5,
+          "births": 0,
+          "deaths": 7,
+          "primaryBytes": 48294,
+          "backupBytes": 48396
+        },
+        {
+          "elapsedDays": 20,
+          "alive": 5,
+          "births": 0,
+          "deaths": 7,
+          "primaryBytes": 57346,
+          "backupBytes": 48294
+        },
+        {
+          "elapsedDays": 21,
+          "alive": 5,
+          "births": 0,
+          "deaths": 7,
+          "primaryBytes": 48452,
+          "backupBytes": 57346
+        },
+        {
+          "elapsedDays": 22,
+          "alive": 5,
+          "births": 0,
+          "deaths": 7,
+          "primaryBytes": 51835,
+          "backupBytes": 48452
+        },
+        {
+          "elapsedDays": 23,
+          "alive": 5,
+          "births": 0,
+          "deaths": 7,
+          "primaryBytes": 45716,
+          "backupBytes": 51835
+        },
+        {
+          "elapsedDays": 24,
+          "alive": 5,
+          "births": 0,
+          "deaths": 7,
+          "primaryBytes": 50829,
+          "backupBytes": 45716
+        },
+        {
+          "elapsedDays": 25,
+          "alive": 5,
+          "births": 0,
+          "deaths": 7,
+          "primaryBytes": 52271,
+          "backupBytes": 50829
+        },
+        {
+          "elapsedDays": 26,
+          "alive": 5,
+          "births": 0,
+          "deaths": 7,
+          "primaryBytes": 53104,
+          "backupBytes": 52271
+        },
+        {
+          "elapsedDays": 27,
+          "alive": 5,
+          "births": 0,
+          "deaths": 7,
+          "primaryBytes": 51617,
+          "backupBytes": 53104
+        },
+        {
+          "elapsedDays": 28,
+          "alive": 5,
+          "births": 0,
+          "deaths": 7,
+          "primaryBytes": 51912,
+          "backupBytes": 51617
+        },
+        {
+          "elapsedDays": 29,
+          "alive": 5,
+          "births": 0,
+          "deaths": 7,
+          "primaryBytes": 52067,
+          "backupBytes": 51912
+        },
+        {
+          "elapsedDays": 30,
+          "alive": 5,
+          "births": 0,
+          "deaths": 7,
+          "primaryBytes": 49138,
+          "backupBytes": 52067
+        },
+        {
+          "elapsedDays": 31,
+          "alive": 5,
+          "births": 0,
+          "deaths": 7,
+          "primaryBytes": 48777,
+          "backupBytes": 49138
+        },
+        {
+          "elapsedDays": 32,
+          "alive": 7,
+          "births": 2,
+          "deaths": 7,
+          "primaryBytes": 51086,
+          "backupBytes": 48777
+        },
+        {
+          "elapsedDays": 33,
+          "alive": 7,
+          "births": 2,
+          "deaths": 7,
+          "primaryBytes": 65165,
+          "backupBytes": 51086
+        },
+        {
+          "elapsedDays": 34,
+          "alive": 7,
+          "births": 2,
+          "deaths": 7,
+          "primaryBytes": 70369,
+          "backupBytes": 65165
+        },
+        {
+          "elapsedDays": 35,
+          "alive": 7,
+          "births": 2,
+          "deaths": 7,
+          "primaryBytes": 70118,
+          "backupBytes": 70369
+        },
+        {
+          "elapsedDays": 36,
+          "alive": 7,
+          "births": 2,
+          "deaths": 7,
+          "primaryBytes": 67617,
+          "backupBytes": 70118
+        },
+        {
+          "elapsedDays": 37,
+          "alive": 7,
+          "births": 2,
+          "deaths": 7,
+          "primaryBytes": 66052,
+          "backupBytes": 67617
+        },
+        {
+          "elapsedDays": 38,
+          "alive": 7,
+          "births": 2,
+          "deaths": 7,
+          "primaryBytes": 67402,
+          "backupBytes": 66052
+        },
+        {
+          "elapsedDays": 39,
+          "alive": 7,
+          "births": 3,
+          "deaths": 8,
+          "primaryBytes": 67006,
+          "backupBytes": 67402
+        },
+        {
+          "elapsedDays": 40,
+          "alive": 8,
+          "births": 4,
+          "deaths": 8,
+          "primaryBytes": 73081,
+          "backupBytes": 67006
+        },
+        {
+          "elapsedDays": 41,
+          "alive": 8,
+          "births": 4,
+          "deaths": 8,
+          "primaryBytes": 75580,
+          "backupBytes": 73081
+        },
+        {
+          "elapsedDays": 42,
+          "alive": 8,
+          "births": 4,
+          "deaths": 8,
+          "primaryBytes": 72430,
+          "backupBytes": 75580
+        },
+        {
+          "elapsedDays": 43,
+          "alive": 7,
+          "births": 4,
+          "deaths": 9,
+          "primaryBytes": 63576,
+          "backupBytes": 72430
+        },
+        {
+          "elapsedDays": 44,
+          "alive": 7,
+          "births": 4,
+          "deaths": 9,
+          "primaryBytes": 66669,
+          "backupBytes": 63576
+        },
+        {
+          "elapsedDays": 45,
+          "alive": 7,
+          "births": 4,
+          "deaths": 9,
+          "primaryBytes": 70669,
+          "backupBytes": 66669
+        },
+        {
+          "elapsedDays": 46,
+          "alive": 6,
+          "births": 4,
+          "deaths": 10,
+          "primaryBytes": 53922,
+          "backupBytes": 70669
+        },
+        {
+          "elapsedDays": 47,
+          "alive": 6,
+          "births": 4,
+          "deaths": 10,
+          "primaryBytes": 59665,
+          "backupBytes": 53922
+        },
+        {
+          "elapsedDays": 48,
+          "alive": 7,
+          "births": 5,
+          "deaths": 10,
+          "primaryBytes": 57731,
+          "backupBytes": 59665
+        },
+        {
+          "elapsedDays": 49,
+          "alive": 7,
+          "births": 5,
+          "deaths": 10,
+          "primaryBytes": 65678,
+          "backupBytes": 57731
+        },
+        {
+          "elapsedDays": 50,
+          "alive": 7,
+          "births": 5,
+          "deaths": 10,
+          "primaryBytes": 70130,
+          "backupBytes": 65678
+        },
+        {
+          "elapsedDays": 51,
+          "alive": 7,
+          "births": 5,
+          "deaths": 10,
+          "primaryBytes": 76805,
+          "backupBytes": 70130
+        },
+        {
+          "elapsedDays": 52,
+          "alive": 6,
+          "births": 5,
+          "deaths": 11,
+          "primaryBytes": 60178,
+          "backupBytes": 76805
+        },
+        {
+          "elapsedDays": 53,
+          "alive": 6,
+          "births": 5,
+          "deaths": 11,
+          "primaryBytes": 58558,
+          "backupBytes": 60178
+        },
+        {
+          "elapsedDays": 54,
+          "alive": 6,
+          "births": 5,
+          "deaths": 11,
+          "primaryBytes": 57697,
+          "backupBytes": 58558
+        },
+        {
+          "elapsedDays": 55,
+          "alive": 6,
+          "births": 6,
+          "deaths": 12,
+          "primaryBytes": 48990,
+          "backupBytes": 57697
+        },
+        {
+          "elapsedDays": 56,
+          "alive": 6,
+          "births": 6,
+          "deaths": 12,
+          "primaryBytes": 48957,
+          "backupBytes": 48990
+        },
+        {
+          "elapsedDays": 57,
+          "alive": 6,
+          "births": 6,
+          "deaths": 12,
+          "primaryBytes": 58099,
+          "backupBytes": 48957
+        },
+        {
+          "elapsedDays": 58,
+          "alive": 6,
+          "births": 6,
+          "deaths": 12,
+          "primaryBytes": 60072,
+          "backupBytes": 58099
+        },
+        {
+          "elapsedDays": 59,
+          "alive": 6,
+          "births": 6,
+          "deaths": 12,
+          "primaryBytes": 53682,
+          "backupBytes": 60072
+        },
+        {
+          "elapsedDays": 60,
+          "alive": 6,
+          "births": 6,
+          "deaths": 12,
+          "primaryBytes": 56712,
+          "backupBytes": 53682
+        },
+        {
+          "elapsedDays": 61,
+          "alive": 6,
+          "births": 6,
+          "deaths": 12,
+          "primaryBytes": 53719,
+          "backupBytes": 56712
+        }
+      ]
+    }
+  ],
+  "worldConfig": {
+    "seed": 20260420,
+    "width": 5120,
+    "height": 5120,
+    "cellSize": 1,
+    "chunkSize": 64,
+    "terrainCacheMaxChunks": 256,
+    "wrapMode": "toroidal",
+    "terrain": {
+      "minHeight": -10,
+      "maxHeight": 80,
+      "seaLevel": 0
+    },
+    "simulation": {
+      "tickMs": 10000,
+      "ticksPerDay": 360
+    },
+    "agents": {
+      "count": 50,
+      "deepWaterThreshold": 1.2,
+      "moveCellsPerStep": 32
+    },
+    "survival": {
+      "hungerDecayRate": 0.0003968253968253968,
+      "thirstDecayRate": 0.000925925925925926,
+      "tirednessDecayRate": 0.001388888888888889,
+      "hungerThreshold": 0.2,
+      "thirstThreshold": 0.15,
+      "tirednessThreshold": 0.35,
+      "actionTicks": 8,
+      "actionRestoreRate": 0.05,
+      "foodRegrowTicks": 500,
+      "foodSpreadRadius": 15,
+      "foodSpreadChance": 0.02,
+      "foodSpreadInterval": 200,
+      "foodDensityRadius": 10,
+      "foodDensityMax": 4,
+      "foodStock": 3,
+      "drinkActionTicks": 4,
+      "drinkRestoreRate": 0.15,
+      "restActionTicks": 120,
+      "restRestoreRate": 0.004,
+      "fruitHydration": 0.2
+    },
+    "perception": {
+      "coneDeg": 100,
+      "coneHalfAngleRad": 0.8726646259971648,
+      "nearRadius": 4,
+      "memoryDecayFloor": 0.02,
+      "entityMemoryDecayRate": 0.002,
+      "clusterRadius": 10,
+      "clusterMinCount": 3,
+      "clusterDecayMultiplier": 100
+    },
+    "altitude": {
+      "uphillPenaltyMultiplier": 1.5,
+      "downhillBonusMultiplier": 0.9,
+      "altitudeDiffThreshold": 0.5,
+      "foodAltitudeBiasStrength": 0.7,
+      "restAltitudeBiasStrength": 0.6,
+      "preferredAltitudeMax": 30
+    }
+  },
+  "reproductionPolicyHash": "deec1f8b0183e40d07f5b4780dc6835b8df8b84f78b3819563a127b6dc219868"
+}

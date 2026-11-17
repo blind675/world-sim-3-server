@@ -7,7 +7,7 @@ The project is split across three Git repositories:
 - [Frontend](https://github.com/blind675/world-sim-3-client): Next.js, TypeScript, and Tailwind; canvas viewer and inspection panels.
 - [Mobile](https://github.com/blind675/world-sim-3-mobile): Expo and React Native; native read-only viewer.
 
-The simulation is agent-first: a deterministic, wrapped 5120 × 5120 cell world supports autonomous agents that move, perceive, remember, and respond to hunger, thirst, and tiredness. The browser shows terrain, resources, agents, and simulation statistics. Milestones 0–5 are substantially implemented; the [PRD](PRODUCT_REQUIREMENTS.md) and [checklist](BUILD_CHECKLIST.md) contain the longer-term vision and historical progress notes.
+The simulation is agent-first: a deterministic, wrapped 5120 × 5120 cell world supports autonomous agents that move, perceive, remember, and respond to hunger, thirst, and tiredness. The browser shows terrain, resources, agents, and simulation statistics. The [current roadmap](SIMULATION_ROADMAP.md) tracks the active milestone sequence; the [PRD](PRODUCT_REQUIREMENTS.md) and [checklist](BUILD_CHECKLIST.md) use older milestone numbers and preserve historical plans.
 
 Current ideas for the next simulation phase are collected in a [discussion draft](SIMULATION_DESIGN_DRAFT.md). Its proposals and open questions are not implemented requirements.
 
@@ -19,7 +19,8 @@ Current ideas for the next simulation phase are collected in a [discussion draft
 - Viewport and chunk APIs serve only requested map data. Resource statistics report coverage of generated chunks.
 - The frontend reads `NEXT_PUBLIC_BACKEND_URL` and polls the backend for updates.
 - Versioned object definitions live in a JSON catalogue. Legacy object IDs and positions stay stable; habitat definitions add deterministic mushroom, reed, and fallen-wood positions. Mushroom offspring can rot on a sparse tick schedule. Snapshots pin the catalogue hash and persist perishable offspring.
-- The emerging ground-bird simulation uses 360 ticks per simulated day. Agents traverse bounded walking path segments, remember reachable terrain shorelines, drink from adjacent terrain water, and rest on walkable ground. Day/night preferences and climate remain later milestones; see the roadmap and fixed-seed baseline reports for measured survival.
+- A separate versioned behavior catalogue schedules bounded idle, look-around, and exploration policies. Urgent survival needs interrupt leisure. Agent behavior progress and the catalogue hash are saved with the world; web and mobile viewers only display the active policy.
+- The emerging ground-bird simulation uses 360 ticks per simulated day. Agents traverse bounded walking path segments, remember reachable terrain shorelines, drink from adjacent terrain water, and rest on walkable ground. Tick-derived light reduces vision at night, and diurnal or nocturnal preference steers sleep to the inactive half of the day. Deterministic daily weather and local air temperature add bounded hunger, thirst, and visibility effects; see the roadmap and fixed-seed baseline reports for measured survival.
 
 ## Run locally
 
@@ -28,5 +29,6 @@ Start the backend from this repository with `npm install`, `cp .env.example .env
 ## Current deployment gaps
 
 Mutable agent and resource state is now saved to versioned snapshots on a persistent volume. Production control routes require a server-side bearer token. A deployment still needs one always-on instance, a durable volume, a configured secret, and off-host backups for disaster recovery. See [Docker Deployment](DOCKER_DEPLOYMENT.md) for the exact settings.
+The checked-in [agent template](AGENT_TEMPLATE.md) defines the current ground bird's inherited-trait bounds and life stages. Birth tick and lifespan are stored per agent; displayed age and stage derive from saved simulation ticks. Agents reaching their individual lifespan die of old age. The template hash is pinned in snapshots, and older agents migrate without resetting. A separate [reproduction policy](REPRODUCTION_MODEL.md) governs two-parent births, inherited traits, parental needs costs, cooldowns, and a bounded population. The [population report](baselines/population-m10.md) measures the early birth/death balance and its limits.
 
-Planned later work includes richer live updates, multi-agent interactions, reproduction, and trait inheritance. The backend API serves both web and mobile viewers.
+Agents can take one fruit from a berry bush, carry it, and eat it later. The [inventory model](INVENTORY_MODEL.md) records its source accounting, snapshot, and death rules. Later proposals include broader inventory and richer multi-agent interactions. The backend API serves both web and mobile viewers.
