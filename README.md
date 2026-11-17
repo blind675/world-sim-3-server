@@ -5,6 +5,7 @@ Node.js + Express backend for the FlatWorld life simulation. Provides authoritat
 This is the backend repository for a three-repository project. The [web client](https://github.com/blind675/world-sim-3-client) and [mobile client](https://github.com/blind675/world-sim-3-mobile) are separate viewers. Shared project context is in [Project Overview](docs/PROJECT_OVERVIEW.md), [Product Requirements](docs/PRODUCT_REQUIREMENTS.md), and the [Build Checklist](docs/BUILD_CHECKLIST.md). The requirements and checklist are historical planning documents; code and tests describe current behavior.
 
 Routine work is committed to `staging`; `main` is reserved for an explicitly requested production release. See the [release workflow](docs/RELEASE_WORKFLOW.md) and the [current simulation roadmap](docs/SIMULATION_ROADMAP.md).
+The former combined population milestone is now split into four deliverables in the [population plan](docs/POPULATION_PLAN.md).
 
 ## Quick Start
 
@@ -186,15 +187,4 @@ Set `DEBUG=*` environment variable for verbose logging.
 
 ## Milestone Status
 
-- ✅ **Milestone 0**: Core infrastructure
-- ✅ **Milestone 1**: Terrain generation
-- ✅ **Milestone 2**: World objects
-- ✅ **Milestone 3**: Agent movement
-- ✅ **Milestone 4**: Perception & memory
-- ✅ **Milestone 5**: Survival loop
-
-## Next Milestones
-
-- Milestone 6: Multi-agent interaction
-- Milestone 7: Reproduction & inheritance
-- Milestone 8: WebSocket live updates
+See the [current roadmap](docs/SIMULATION_ROADMAP.md) for completed milestones 1–7 and planned milestones 8–11. The older numbering in the historical PRD and build checklist is not the current implementation plan.

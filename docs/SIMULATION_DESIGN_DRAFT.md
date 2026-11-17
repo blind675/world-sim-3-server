@@ -2,6 +2,8 @@
 
 **Status:** Working proposal, not an implementation specification. This captures the November 2026 ideas and separates agreed direction from open decisions. The historical [PRD](PRODUCT_REQUIREMENTS.md) and [build checklist](BUILD_CHECKLIST.md) describe the original plan; current behavior is defined by code and tests.
 
+The original combined templates/reproduction/inventory proposal below has been split into milestones 8–11 in the [current roadmap](SIMULATION_ROADMAP.md). Use the [population plan](POPULATION_PLAN.md) for their sequence and completion checks.
+
 ## Direction
 
 Build a world that remains interesting to watch over many simulated days: agents have understandable motives, adapt to conditions, and can die, while reproduction can sustain a population. Prefer a few rules that create observable consequences over many independent features. The backend remains authoritative and deterministic where practical; the web and mobile apps remain viewers. Keep the single-instance, file-snapshot deployment affordable.
